@@ -126,7 +126,32 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         window edges, dimension subset, unattributed/custom key, unpriced cost,
         empty) and the handler (JSON shape + content type, dimension parsing,
         window query, async source, every error status).
-- **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
+- **◐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
+  - [x] `renderUsageDashboard(report, { title? })` — a pure, deterministic renderer
+        that turns a `UsageReport` into a **self-contained HTML page**: headline
+        totals (spend / calls / tokens) plus one table per dimension, each row
+        carrying its calls, tokens, cost, and a bar showing its share of total
+        spend (rows already cost-sorted by `rollupByDimension`). Inline styles
+        only — no scripts, no external assets — and every dynamic value is
+        HTML-escaped, so an attacker-controlled tenant id cannot inject markup.
+  - [x] `dashboardHandler({ source, dimensions?, unattributedKey?, title? })` —
+        the HTML companion to `usageHandler`: the same Web Fetch
+        `(Request) => Response` shape over the same `dimension`/`since`/`until`
+        query surface, rendering the dashboard instead of JSON. Mounts in
+        Next.js / Hono / Bun / Deno / Workers in one line. Hardened like the JSON
+        endpoint — `400` (bad query) / `405` (non-GET, with `Allow`) / `500`
+        (source failure) as small HTML error pages; never throws.
+  - [x] Shared `usageReportOptionsFromQuery` (in `src/usage/query.ts`) — the
+        `dimension`/`since`/`until` parsing the JSON endpoint and the dashboard
+        now both go through, so the two surfaces stay in lock-step. `endpoint.ts`
+        refactored onto it (no behaviour change; endpoint tests unchanged).
+  - [x] Offline example serves the dashboard; 18 new unit tests (pure renderer:
+        totals, per-dimension tables, cost-sort order, dimension subset, HTML
+        escaping, empty state, window line, custom title, determinism; handler:
+        content type, dimension/window query, every error status, async source,
+        escaped error message, title passthrough).
+  - [ ] Dashboard screenshot embedded in the README.
+  - [ ] Tagged release (version bump, publish-ready package).
 
 ## Definition of done (from spec)
 
@@ -253,6 +278,22 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   partition records without double-counting. Like the call path, the endpoint
   never throws: a failing source becomes a `500`, bad params a `400`, a non-`GET`
   a `405`.
+- **The dashboard is the report, rendered** (M6): the spec asks for "a small
+  dashboard ... showing spend by dimension", and abacus already computes that
+  spend once — `buildUsageReport`. So the dashboard adds no new data path: it is a
+  pure `renderUsageDashboard(report)` over the *same* `UsageReport` the `/usage`
+  endpoint serves, wrapped in a `dashboardHandler` that is the HTML twin of
+  `usageHandler` (same Web Fetch shape, same query surface). The two handlers were
+  starting to duplicate query parsing, so `dimension`/`since`/`until` parsing moved
+  to one shared `usageReportOptionsFromQuery`; JSON and HTML can never drift. The
+  page is deliberately **self-contained and dependency-free** — server-rendered
+  HTML with inline styles, no client JS, no charting library, no external assets —
+  matching abacus's "no runtime dependency beyond `ai`" ethos and meaning the
+  output is a plain string that drops into any response *or* a static file (so a
+  README screenshot is just rendering one report). Rendering is pure and
+  deterministic (the decide-is-pure ethos again) and **HTML-escapes every dynamic
+  value**, because dimension keys are attacker-controlled (a tenant id from a
+  caller) and must not be able to inject markup.
 - **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
   against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
   `ioredis` client drops in and abacus keeps its dependency surface to `ai` +

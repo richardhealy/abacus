@@ -7,6 +7,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Spend dashboard (milestone M6, first part): `dashboardHandler({ source })` — the
+  HTML companion to `usageHandler`. Same Web Fetch `(Request) => Response` shape
+  over the same `dimension`/`since`/`until` query surface, but renders the
+  spend-by-dimension `UsageReport` as a self-contained HTML page instead of JSON,
+  delivering the spec's "small dashboard ... showing spend by dimension". The page
+  shows headline totals (spend / calls / tokens) and one table per dimension, each
+  row carrying its calls, tokens, cost, and a bar for its share of total spend.
+  It is server-rendered with inline styles only — no client JS, no external
+  assets, no added dependency — and HTML-escapes every dynamic value so an
+  attacker-controlled tenant id cannot inject markup. Hardened like the JSON
+  endpoint: `400` on a bad query, `405` on a non-`GET` (with `Allow`), `500` on a
+  source failure, each as a small HTML error page; never throws.
+- `renderUsageDashboard(report, { title? })` — the pure, deterministic renderer
+  behind the handler (the same `UsageReport` → the same markup), exported for
+  building the dashboard outside HTTP (a static snapshot, a screenshot, an email).
+- Factored the shared `dimension`/`since`/`until` parsing into
+  `usageReportOptionsFromQuery` so the JSON endpoint and the dashboard parse the
+  query identically and can never drift; `usageHandler` refactored onto it with no
+  behaviour change. The offline example now serves the dashboard; 18 new unit
+  tests cover the pure renderer and the handler (every branch and error status).
 - The `/usage` endpoint (completes milestone M5): `usageHandler({ source })` — a
   framework-agnostic Web Fetch handler (`(Request) => Response`) that serves the
   spend-by-dimension view as JSON. Mounts in Next.js / Hono / Bun / Deno /

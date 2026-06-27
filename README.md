@@ -20,10 +20,11 @@ without the caller knowing.
 > downshift / cache / refuse decision, and an enforcement middleware that
 > *executes* that decision — downshifting, serving cache, or refusing — and
 > charges spend back to the budget, an **OpenTelemetry sink** that emits metered
-> spend as `gen_ai.*` spans and metrics through [`watchtower`](spec.md), and a
+> spend as `gen_ai.*` spans and metrics through [`watchtower`](spec.md), a
 > framework-agnostic **`/usage` endpoint** that serves the spend-by-dimension
-> view as JSON. A dashboard over it (**M6**) is next. See
-> [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> view as JSON, and an **HTML dashboard** (**M6**) that renders the same view as a
+> self-contained, dependency-free page. A README screenshot and a tagged release
+> close out M6. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -425,6 +426,43 @@ building the same view without HTTP. The handler is hardened like the call path 
 it never throws: an unknown dimension or non-numeric bound is a `400`, a non-`GET`
 method a `405`, and a failing source a `500`. See it return a live report in
 [`examples/wrap-call.ts`](examples/wrap-call.ts).
+
+## Dashboard
+
+`/usage` returns JSON; **`dashboardHandler`** renders the *same* spend-by-dimension
+view as a human-readable HTML page — the spec's "small dashboard showing spend by
+dimension". It is the HTML twin of `usageHandler`: the same Web Fetch
+`(Request) => Response` shape over the same `dimension` / `since` / `until` query
+surface, so it mounts the same one-line way and adds no dependency.
+
+```ts
+import { dashboardHandler } from 'abacus';
+
+// Next.js App Router (app/dashboard/route.ts):
+export const GET = dashboardHandler({ source: () => sink.records });
+
+// Bun / Deno / Hono — same handler, any Web-standard runtime.
+```
+
+The page shows headline totals (spend, calls, tokens) and one table per
+dimension, each row carrying its calls, tokens, cost, and a bar showing its share
+of total spend. It is **server-rendered and self-contained** — inline styles, no
+client JavaScript, no external assets — so it works in any browser, renders
+without a network round-trip, and every dynamic value is HTML-escaped (a
+tenant id can't inject markup).
+
+For rendering outside HTTP — a static snapshot, a screenshot, an email — the
+renderer is pure and exported:
+
+```ts
+import { renderUsageDashboard, buildUsageReport } from 'abacus';
+import { writeFileSync } from 'node:fs';
+
+const html = renderUsageDashboard(buildUsageReport(sink.records), {
+  title: 'Acme — spend',
+});
+writeFileSync('dashboard.html', html); // open in a browser, or screenshot it
+```
 
 ## Development
 

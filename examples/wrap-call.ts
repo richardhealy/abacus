@@ -17,6 +17,7 @@ import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test';
 import {
   BudgetExceededError,
   BudgetLedger,
+  dashboardHandler,
   defaultPrices,
   enforcementMiddleware,
   InMemoryBudgetStore,
@@ -110,6 +111,19 @@ const usageResponse = await usageEndpoint(
 console.log(
   'GET /usage?dimension=tenant ->',
   JSON.stringify(await usageResponse.json(), null, 2),
+);
+
+// --- The dashboard (M6): the same spend-by-dimension view as an HTML page. ---
+// `dashboardHandler` is the HTML companion to `usageHandler` — same Web Fetch
+// shape, same `dimension`/`since`/`until` query surface — rendering a
+// self-contained page instead of JSON. Mount it with one line
+// (`export const GET = dashboardHandler({ source: () => sink.records })`).
+const dashboard = dashboardHandler({ source: () => sink.records });
+const dashboardResponse = await dashboard(new Request('http://localhost/dashboard'));
+const dashboardHtml = await dashboardResponse.text();
+console.log(
+  `GET /dashboard -> ${dashboardHtml.length} bytes of self-contained HTML ` +
+    `(${dashboardResponse.headers.get('content-type')})`,
 );
 
 // --- Enforcement (M3 + M4 in the call path): govern spend per tenant. ---

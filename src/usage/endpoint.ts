@@ -1,12 +1,7 @@
-import {
-  ATTRIBUTION_DIMENSIONS,
-  type AttributionDimension,
-} from '../attribution/types.js';
+import type { AttributionDimension } from '../attribution/types.js';
 import type { MeterRecord } from '../middleware/types.js';
-import {
-  buildUsageReport,
-  type UsageReportOptions,
-} from './report.js';
+import { buildUsageReport } from './report.js';
+import { isUsageQueryError, usageReportOptionsFromQuery } from './query.js';
 
 /**
  * Supplies the metered records a `/usage` request reports over. Sync or async.
@@ -40,50 +35,6 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
   });
 }
 
-function isDimension(value: string): value is AttributionDimension {
-  return (ATTRIBUTION_DIMENSIONS as readonly string[]).includes(value);
-}
-
-/** Parse `?dimension=` params (repeated or comma-separated), de-duplicated. */
-function parseDimensions(
-  params: URLSearchParams,
-): { dimensions: AttributionDimension[] } | { error: string } {
-  const raw = params
-    .getAll('dimension')
-    .flatMap((value) => value.split(','))
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
-
-  const dimensions: AttributionDimension[] = [];
-  for (const value of raw) {
-    if (!isDimension(value)) {
-      return {
-        error: `unknown dimension "${value}"; expected one of ${ATTRIBUTION_DIMENSIONS.join(', ')}`,
-      };
-    }
-    if (!dimensions.includes(value)) dimensions.push(value);
-  }
-  return { dimensions };
-}
-
-/** Parse an optional epoch-ms bound; absent/blank → `null`, non-numeric → error. */
-function parseBound(
-  params: URLSearchParams,
-  name: string,
-): number | null | { error: string } {
-  const raw = params.get(name);
-  if (raw === null || raw.trim() === '') return null;
-  const value = Number(raw);
-  if (!Number.isFinite(value)) {
-    return { error: `"${name}" must be a number (epoch ms), got "${raw}"` };
-  }
-  return value;
-}
-
-function hasError(value: unknown): value is { error: string } {
-  return typeof value === 'object' && value !== null && 'error' in value;
-}
-
 /**
  * A framework-agnostic `/usage` endpoint: a Web Fetch handler
  * (`(request: Request) => Promise<Response>`) that returns the spend-by-dimension
@@ -102,6 +53,9 @@ function hasError(value: unknown): value is { error: string } {
  * Responses are JSON: `200` with the report, `400` on an unknown dimension or
  * non-numeric bound, `405` for a non-`GET` method, and `500` if the record
  * source throws — the endpoint never propagates an exception to the runtime.
+ *
+ * The HTML companion, {@link dashboardHandler}, renders the same report visually
+ * over the same query surface.
  */
 export function usageHandler(
   options: UsageHandlerOptions,
@@ -115,27 +69,12 @@ export function usageHandler(
     }
 
     const params = new URL(request.url).searchParams;
-
-    const parsedDimensions = parseDimensions(params);
-    if (hasError(parsedDimensions)) return json({ error: parsedDimensions.error }, 400);
-
-    const since = parseBound(params, 'since');
-    if (hasError(since)) return json({ error: since.error }, 400);
-    const until = parseBound(params, 'until');
-    if (hasError(until)) return json({ error: until.error }, 400);
-
-    // No `?dimension=` → fall back to the handler's configured default.
-    const dimensions =
-      parsedDimensions.dimensions.length > 0
-        ? parsedDimensions.dimensions
-        : options.dimensions;
-
-    const reportOptions: UsageReportOptions = {};
-    if (dimensions !== undefined) reportOptions.dimensions = dimensions;
-    if (since !== null) reportOptions.since = since;
-    if (until !== null) reportOptions.until = until;
-    if (options.unattributedKey !== undefined) {
-      reportOptions.unattributedKey = options.unattributedKey;
+    const reportOptions = usageReportOptionsFromQuery(params, {
+      dimensions: options.dimensions,
+      unattributedKey: options.unattributedKey,
+    });
+    if (isUsageQueryError(reportOptions)) {
+      return json({ error: reportOptions.error }, 400);
     }
 
     let records: readonly MeterRecord[];

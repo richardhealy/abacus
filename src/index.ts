@@ -2,9 +2,9 @@
  * abacus — a cost-governance layer for LLM calls.
  *
  * v1 surface. Metering, attribution, pricing, budgets, the policy engine, its
- * enforcement in the call path, OpenTelemetry observability, and the `/usage`
- * spend-by-dimension endpoint are in place; the dashboard lands in M6; see
- * PROGRESS.md.
+ * enforcement in the call path, OpenTelemetry observability, the `/usage`
+ * spend-by-dimension endpoint, and the HTML dashboard over it (M6) are in place;
+ * see PROGRESS.md.
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';
@@ -68,6 +68,14 @@ export type {
   UsageHandlerOptions,
   UsageRecordSource,
 } from './usage/endpoint.js';
+
+// Dashboard (M6): the spend-by-dimension view as a self-contained HTML page —
+// a pure renderer plus a Web Fetch handler, the HTML companion to `usageHandler`.
+export { dashboardHandler, renderUsageDashboard } from './usage/dashboard.js';
+export type {
+  DashboardHandlerOptions,
+  DashboardRenderOptions,
+} from './usage/dashboard.js';
 
 // Pricing (M2): auditable price table + deterministic cost math.
 export { costOf, priceFor, computeCost } from './pricing/cost.js';
