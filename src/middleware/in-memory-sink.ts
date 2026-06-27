@@ -44,6 +44,17 @@ export class InMemoryMeterSink implements MeterSink {
     }, emptyUsage());
   }
 
+  /**
+   * Total cost, in USD, summed across every captured record that carries one.
+   * Records metered without a price table contribute `0`. Returned to
+   * nano-dollar precision, matching how each per-call cost is rounded.
+   */
+  totalCost(): number {
+    const NANO = 1e9;
+    const sum = this.buffer.reduce((acc, { cost }) => acc + (cost ?? 0), 0);
+    return Math.round(sum * NANO) / NANO;
+  }
+
   /** Discard all captured records. */
   clear(): void {
     this.buffer.length = 0;

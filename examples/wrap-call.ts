@@ -11,18 +11,24 @@
 import type { LanguageModelV3GenerateResult } from '@ai-sdk/provider';
 import { generateText, wrapLanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
-import { InMemoryMeterSink, meteringMiddleware } from '../src/index.js';
+import {
+  defaultPrices,
+  InMemoryMeterSink,
+  meteringMiddleware,
+} from '../src/index.js';
 
 const sink = new InMemoryMeterSink();
 
 // --- before: a plain model call (no governance) ---
 //   const model = new MockLanguageModelV3({ ... });
 //
-// --- after: the same model, now metered (one line) ---
+// --- after: the same model, now metered AND priced (one line) ---
+// Passing `prices` makes every record carry its cost in USD. The model id below
+// (`anthropic/claude-opus-4`) resolves against the bundled `defaultPrices`.
 const model = wrapLanguageModel({
   model: new MockLanguageModelV3({
-    provider: 'mock',
-    modelId: 'mock/opus',
+    provider: 'gateway',
+    modelId: 'anthropic/claude-opus-4',
     doGenerate: async (): Promise<LanguageModelV3GenerateResult> => ({
       content: [{ type: 'text', text: 'Paris is the capital of France.' }],
       finishReason: { unified: 'stop', raw: 'stop' },
@@ -33,7 +39,7 @@ const model = wrapLanguageModel({
       warnings: [],
     }),
   }),
-  middleware: meteringMiddleware({ sink }),
+  middleware: meteringMiddleware({ sink, prices: defaultPrices }),
 });
 
 const { text } = await generateText({
@@ -44,3 +50,4 @@ const { text } = await generateText({
 console.log('Model said:', text);
 console.log('Metered records:', sink.records);
 console.log('Token totals:', sink.totals());
+console.log('Spend (USD):', sink.totalCost());

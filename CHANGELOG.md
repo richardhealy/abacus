@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-27
+- Pricing (milestone M2): auditable `PriceTable` config in USD per 1M tokens
+  (`defaultPrices`), plus deterministic cost math — `priceFor` (exact match with
+  a bare-model-id fallback), `costOf` (per-category `CostBreakdown`), and
+  `computeCost`. Cached input is billed at the discounted cache rate, reasoning
+  tokens are not charged twice, and amounts are rounded to nano-dollars so summed
+  spend never drifts.
+- `meteringMiddleware` now accepts an optional `prices` table and stamps each
+  `MeterRecord` with its `cost` (USD). Unpriced models are surfaced via an
+  `onUnpricedModel` hook (warn-once) instead of silently billed at `0`.
+- `InMemoryMeterSink.totalCost()` rolls up spend across recorded calls; the
+  offline example now reports cost from the bundled price table.
+
+### Added — 2026-06-27
 - Scaffold (milestone M0): TypeScript/ESM project, vitest, ESLint flat config,
   and `tsc` build to `dist/`, with a GitHub Actions CI pipeline
   (lint → typecheck → test → build).

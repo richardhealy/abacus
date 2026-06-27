@@ -36,6 +36,13 @@ export interface MeterRecord {
   latencyMs: number;
   /** Normalized token usage for the call. */
   usage: TokenUsage;
+  /**
+   * Computed cost of the call in US dollars, present only when the metering
+   * middleware was given a price table and the model was found in it. Left
+   * `undefined` when no prices are configured or the model is unpriced, so
+   * downstream code can tell "free" apart from "not yet priced".
+   */
+  cost?: number;
 }
 
 /**
