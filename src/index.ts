@@ -1,8 +1,9 @@
 /**
  * abacus — a cost-governance layer for LLM calls.
  *
- * v1 surface (metering scaffold). Budgets, the policy engine, pricing, and the
- * `/usage` endpoint land in later milestones; see PROGRESS.md.
+ * v1 surface. Metering, attribution, pricing, and budgets are in place; the
+ * policy engine and the `/usage` endpoint land in later milestones; see
+ * PROGRESS.md.
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';
@@ -35,3 +36,25 @@ export type {
   AttributionDimension,
 } from './attribution/types.js';
 export type { RollupEntry, RollupOptions } from './attribution/rollup.js';
+
+// Budgets (M3): Redis-backed soft/hard limits, daily/monthly windows,
+// concurrency-safe spend accounting.
+export { BUDGET_WINDOWS } from './budget/types.js';
+export type {
+  Budget,
+  BudgetWindow,
+  BudgetScope,
+  BudgetLevel,
+  BudgetState,
+} from './budget/types.js';
+export { windowKey, windowExpirySeconds } from './budget/window.js';
+export { roundUsd, scopeKey } from './budget/store.js';
+export type { BudgetStore } from './budget/store.js';
+export { InMemoryBudgetStore } from './budget/in-memory-store.js';
+export { RedisBudgetStore } from './budget/redis-store.js';
+export type {
+  RedisLike,
+  RedisBudgetStoreOptions,
+} from './budget/redis-store.js';
+export { BudgetLedger, budgetLevel, evaluateBudget } from './budget/ledger.js';
+export type { BudgetLedgerOptions } from './budget/ledger.js';

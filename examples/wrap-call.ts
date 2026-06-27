@@ -15,7 +15,9 @@ import type {
 import { generateText, streamText, wrapLanguageModel } from 'ai';
 import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test';
 import {
+  BudgetLedger,
   defaultPrices,
+  InMemoryBudgetStore,
   InMemoryMeterSink,
   meteringMiddleware,
 } from '../src/index.js';
@@ -92,3 +94,21 @@ console.log('Metered records:', sink.records);
 console.log('Token totals:', sink.totals());
 console.log('Spend (USD):', sink.totalCost());
 console.log('Spend by tenant:', sink.rollup('tenant'));
+
+// --- Budgets (M3): cap spend per tenant over a window. ---
+// A monthly budget for the acme tenant with a soft and hard limit (in USD).
+// Here we replay the acme call's metered cost into the ledger; in production the
+// metering middleware charges the ledger as calls happen and the policy engine
+// (M4) acts on the level it reports.
+const budgets = new BudgetLedger({
+  store: new InMemoryBudgetStore(),
+  budgets: [
+    { dimension: 'tenant', key: 'acme', window: 'monthly', soft: 0.001, hard: 0.002 },
+  ],
+});
+const acmeRecord = sink.records.find((r) => r.attribution?.tenant === 'acme');
+const [acmeBudgetState] = await budgets.charge(
+  acmeRecord?.attribution,
+  acmeRecord?.cost ?? 0,
+);
+console.log('Budget — acme (monthly):', acmeBudgetState);

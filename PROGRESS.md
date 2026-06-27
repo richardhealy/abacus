@@ -37,7 +37,22 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] Wired into the middleware (`prices` option) + `InMemoryMeterSink.totalCost()`.
   - [x] Unpriced models surfaced via `onUnpricedModel`, not silently billed at 0.
   - [x] 17 new unit tests (cost math + middleware pricing).
-- **☐ M3 — Budgets.** Redis soft/hard limits, daily/monthly windows, concurrency-safe.
+- **☑ M3 — Budgets.** Redis soft/hard limits, daily/monthly windows, concurrency-safe.
+  - [x] `Budget` config: per-dimension (tenant/feature/user) soft + hard limits
+        in USD, over a `daily`/`monthly` window.
+  - [x] `BudgetStore` interface (the Redis seam, mirroring `MeterSink`) with an
+        atomic `addSpend` contract — no lost increments under concurrency.
+  - [x] `InMemoryBudgetStore` — concurrency-safe by construction (synchronous
+        read-modify-write); 1000 concurrent charges sum exactly.
+  - [x] `RedisBudgetStore` over a minimal `RedisLike` client (no runtime Redis
+        dependency): atomic `INCRBYFLOAT` accounting + window-boundary `EXPIRE`
+        so buckets self-clean; tested against an in-memory fake.
+  - [x] UTC windowing (`windowKey` / `windowExpirySeconds`): pure, deterministic
+        bucket keys and TTLs; spend resets at a window boundary with no cron.
+  - [x] `BudgetLedger` ties attribution → budgets: `charge`/`check` apply or read
+        spend across every budget a call falls under; `budgetLevel` /
+        `evaluateBudget` derive `ok`/`soft`/`hard` purely (the seam for M4).
+  - [x] 35 new unit tests (windowing, both stores incl. concurrency, ledger).
 - **☐ M4 — Policy engine.** Pure `(budget, request) → action`; downshift / cache / refuse, per-branch tests.
 - **☐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
 - **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
@@ -46,8 +61,10 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
 
 - [x] A wrapped call is metered and attributed with one line of integration
       (wrap once; tag per call via `providerOptions.abacus`).
-- [ ] Crossing a soft limit downshifts (or caches); crossing a hard limit refuses cleanly.
-- [ ] Budget accounting is correct under concurrent calls (tested).
+- [ ] Crossing a soft limit downshifts (or caches); crossing a hard limit refuses
+      cleanly. *(M3 supplies the budget level; M4 wires it into the call path.)*
+- [x] Budget accounting is correct under concurrent calls (tested) — `addSpend`
+      is atomic in both stores; concurrent-charge tests assert exact totals.
 - [ ] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
 
 ## Notes / decisions
@@ -75,6 +92,24 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   costs never accumulates floating-point dust. Pricing is optional — metering
   runs without it — and an unpriced model is left cost-less (surfaced via
   `onUnpricedModel`) rather than silently billed at `0`.
+- **Budgets are a spend ledger, not a policy** (M3): the budget layer only
+  *measures* — it accumulates spend per scope/window and reports which threshold
+  it has crossed (`ok`/`soft`/`hard`). Deciding what to *do* (downshift / cache /
+  refuse) is the policy engine (M4). This keeps the store dumb and durable, the
+  evaluation pure, and the decision testable in isolation, matching the spec's
+  observation/enforcement split.
+- **Concurrency safety via atomic add** (M3): the overspend race is two callers
+  reading the same total and writing back `total + delta`, losing one. Both
+  stores avoid it by never doing a read-then-write: the in-memory store mutates
+  in one synchronous step (atomic under Node's event loop), and the Redis store
+  uses server-side `INCRBYFLOAT`. A throwaway 1000-concurrent-charge test on each
+  asserts the sum is exact. The store is clock-free (timestamps are passed in),
+  so windowing stays pure and tests place spend in a chosen day/month.
+- **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
+  against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
+  `ioredis` client drops in and abacus keeps its dependency surface to `ai` +
+  `@ai-sdk/provider`. Each window bucket gets a TTL landing on the window
+  boundary, so spend resets and stale buckets clean themselves with no cron.
 - **Attribution rides on `providerOptions`** (M1): per-call tags are read from
   the `abacus` namespace of an AI SDK call's `providerOptions`, so one wrapped
   model serves every tenant and the one-line integration is preserved (no

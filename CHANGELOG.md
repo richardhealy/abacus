@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-27
+- Budgets (milestone M3): soft/hard spend limits per attribution scope
+  (tenant / feature / user) over a `daily` or `monthly` window. A `BudgetStore`
+  interface abstracts the durable counter, with two implementations — an
+  `InMemoryBudgetStore` for tests/single-process use and a `RedisBudgetStore`
+  for multi-process deployments. Both are **concurrency-safe**: spend is added
+  atomically (synchronous in memory, `INCRBYFLOAT` in Redis), so concurrent
+  charges never lose an increment (the overspend race), proven by a
+  1000-concurrent-charge test on each.
+- `BudgetLedger` ties attribution to budgets: `charge` applies an attributed
+  cost to every budget the call falls under and `check` reads current state, each
+  returning a `BudgetState` (spend, `ok`/`soft`/`hard` level, fraction of the
+  hard limit). `budgetLevel` / `evaluateBudget` derive the level purely — the
+  seam the policy engine (M4) will consume.
+- UTC windowing (`windowKey` / `windowExpirySeconds`): deterministic bucket keys
+  and TTLs so spend resets at a window boundary with no scheduled job; Redis
+  buckets self-expire. `RedisBudgetStore` is written against a minimal `RedisLike`
+  client, so abacus keeps its runtime dependencies to `ai` + `@ai-sdk/provider`.
+- Offline example now charges the acme tenant's metered cost into a monthly
+  budget and prints the resulting state; 35 new unit tests.
+
+### Added — 2026-06-27
 - Streaming metering (completes milestone M1): `meteringMiddleware` now wraps the
   streaming path (`streamText` / `streamObject`) as well as the buffered one. The
   stream parts flow through a `TransformStream` untouched; usage is read from the

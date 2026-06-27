@@ -9,12 +9,14 @@ path** and can meter, attribute, cap, and downshift — all observable. It is bu
 as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
-> **Status:** early. Metering (**M0–M1**) and pricing (**M2**) are in place —
-> one-line wrapping that meters both the buffered (`generateText`) and streaming
-> (`streamText`) paths, normalized token metering, attribution by tenant /
-> feature / user with spend rollups, a pluggable sink, an auditable price table,
-> and deterministic per-call cost. Budgets, the policy engine, and the `/usage`
-> endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> **Status:** early. Metering (**M0–M1**), pricing (**M2**), and budgets
+> (**M3**) are in place — one-line wrapping that meters both the buffered
+> (`generateText`) and streaming (`streamText`) paths, normalized token metering,
+> attribution by tenant / feature / user with spend rollups, a pluggable sink, an
+> auditable price table, deterministic per-call cost, and concurrency-safe
+> soft/hard budgets over daily/monthly windows (in-memory or Redis-backed). The
+> policy engine that enforces those budgets and the `/usage` endpoint are next.
+> See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -159,6 +161,58 @@ Cached input tokens are billed at the cache rate and the remainder at the full
 input rate; reasoning tokens are part of output and are not charged twice. A
 model with no entry in the table is metered **without** a cost (and surfaced via
 an `onUnpricedModel` hook) rather than silently billed at `0`.
+
+## Budgets
+
+A **budget** caps spend for one attribution scope over a window — "$10/month for
+tenant acme", "$2/day for the chat feature". Each budget carries a **soft** limit
+(degrade gracefully) and a **hard** limit (refuse), both in USD:
+
+```ts
+import { BudgetLedger, InMemoryBudgetStore } from 'abacus';
+
+const budgets = new BudgetLedger({
+  store: new InMemoryBudgetStore(),
+  budgets: [
+    { dimension: 'tenant', key: 'acme', window: 'monthly', soft: 8, hard: 10 },
+    { dimension: 'feature', key: 'chat', window: 'daily', hard: 2 },
+  ],
+});
+
+// Charge an attributed cost; it lands on every budget the call falls under.
+const states = await budgets.charge(
+  { tenant: 'acme', feature: 'chat' },
+  0.5,
+);
+// → [ { budget: {…}, spent: 0.5, level: 'ok', fraction: 0.05 }, … ]
+
+// Or read the current state without charging, to decide before a call runs.
+await budgets.check({ tenant: 'acme' });
+```
+
+`charge` returns a `BudgetState` per matching budget — its `spent` so far this
+window, the `level` it has crossed (`ok` / `soft` / `hard`), and the `fraction`
+of the hard limit consumed. The budget layer only **measures**; deciding what to
+do when a level is crossed (downshift / cache / refuse) is the policy engine's
+job (next milestone), keeping the decision pure and testable.
+
+Spend lives in a `BudgetStore`. `InMemoryBudgetStore` is provided for tests and
+single-process use; `RedisBudgetStore` backs spend with Redis for multi-process
+deployments and plugs into the same interface:
+
+```ts
+import { RedisBudgetStore } from 'abacus';
+import Redis from 'ioredis';
+
+const store = new RedisBudgetStore(new Redis(process.env.REDIS_URL!));
+```
+
+**Accounting is concurrency-safe:** spend is added atomically (a synchronous
+read-modify-write in memory, server-side `INCRBYFLOAT` in Redis), so simultaneous
+calls can never lose an increment — the overspend race. Windows are bucketed in
+UTC and Redis keys expire at the window boundary, so spend resets with no cron.
+`RedisBudgetStore` is written against a minimal client interface, so abacus adds
+no Redis dependency of its own.
 
 ## Development
 
