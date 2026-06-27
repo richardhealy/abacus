@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Dashboard screenshot in the README (`docs/dashboard.png`) — a render of the
+  spend-by-dimension dashboard over a representative week of spend across five
+  tenants (the Opus-heavy `acme` tenant dominating the bill), produced by
+  `renderUsageDashboard`. This is the visual the M6 "small dashboard ... showing
+  spend by dimension" milestone calls for; the first of M6's two closing items.
+  Only a tagged release now remains.
 - Spend dashboard (milestone M6, first part): `dashboardHandler({ source })` — the
   HTML companion to `usageHandler`. Same Web Fetch `(Request) => Response` shape
   over the same `dimension`/`since`/`until` query surface, but renders the
@@ -83,6 +89,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `onUnpricedModel` rather than silently uncharged. The offline example now runs a
   metered **and** governed model across three tenants to show allow / downshift /
   refuse; 13 new unit tests cover every branch on both paths.
+
+### Fixed — 2026-06-28
+- Dashboard share bars rendered collapsed: the `td.share` cell was
+  `display:flex`, which takes the cell out of the table's column-width model, so
+  its `width` was ignored and the `flex:1` bar shrank to its content width
+  (a near-invisible sliver). The bar and percentage now sit in an inner
+  `.share-wrap` flex row inside a normal `width:34%` table cell, and the bar has a
+  `min-width` so its track is always visible. Markup-compatible (the existing
+  dashboard tests are unchanged and still pass); the renderer stays pure and
+  deterministic.
 
 ### Added — 2026-06-27
 - Policy engine (milestone M4): a pure `decide(policy, states, request) → action`

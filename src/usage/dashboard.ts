@@ -71,8 +71,10 @@ function row(entry: RollupEntry, totalCost: number): string {
         <td class="num">${formatInt(entry.usage.totalTokens)}</td>
         <td class="num cost">${formatUsd(entry.cost)}</td>
         <td class="share">
-          <div class="bar"><span style="width:${(share * 100).toFixed(2)}%"></span></div>
-          <span class="share-pct">${formatPercent(share)}</span>
+          <div class="share-wrap">
+            <div class="bar"><span style="width:${(share * 100).toFixed(2)}%"></span></div>
+            <span class="share-pct">${formatPercent(share)}</span>
+          </div>
         </td>
       </tr>`;
 }
@@ -142,9 +144,9 @@ const STYLES = `
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     td.cost { font-weight: 600; }
     td.empty { color: var(--muted); text-align: center; padding: 1.25rem; }
-    th.share, td.share { width: 30%; }
-    td.share { display: flex; align-items: center; gap: 0.6rem; }
-    .bar { flex: 1; height: 8px; background: var(--accent-soft); border-radius: 999px; overflow: hidden; }
+    th.share, td.share { width: 34%; }
+    .share-wrap { display: flex; align-items: center; gap: 0.6rem; }
+    .bar { flex: 1; min-width: 90px; height: 8px; background: var(--accent-soft); border-radius: 999px; overflow: hidden; }
     .bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
     .share-pct { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
     footer { color: var(--muted); font-size: 0.78rem; text-align: center; margin-top: 1.5rem; }

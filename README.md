@@ -23,8 +23,9 @@ without the caller knowing.
 > spend as `gen_ai.*` spans and metrics through [`watchtower`](spec.md), a
 > framework-agnostic **`/usage` endpoint** that serves the spend-by-dimension
 > view as JSON, and an **HTML dashboard** (**M6**) that renders the same view as a
-> self-contained, dependency-free page. A README screenshot and a tagged release
-> close out M6. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> self-contained, dependency-free page — see the screenshot under
+> [Dashboard](#dashboard). A tagged release closes out M6. See
+> [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -434,6 +435,12 @@ view as a human-readable HTML page — the spec's "small dashboard showing spend
 dimension". It is the HTML twin of `usageHandler`: the same Web Fetch
 `(Request) => Response` shape over the same `dimension` / `since` / `until` query
 surface, so it mounts the same one-line way and adds no dependency.
+
+![The abacus spend dashboard — headline totals (spend, calls, tokens) above one table per attribution dimension (tenant, feature, user), each row showing calls, tokens, cost, and a bar for its share of total spend.](docs/dashboard.png)
+
+*Rendered by `renderUsageDashboard` — a self-contained HTML page, no client
+JavaScript or external assets. Above: a sample week of spend across five tenants,
+where the Opus-heavy `acme` tenant dominates the bill.*
 
 ```ts
 import { dashboardHandler } from 'abacus';

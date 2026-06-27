@@ -150,7 +150,14 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         escaping, empty state, window line, custom title, determinism; handler:
         content type, dimension/window query, every error status, async source,
         escaped error message, title passthrough).
-  - [ ] Dashboard screenshot embedded in the README.
+  - [x] Dashboard screenshot embedded in the README (`docs/dashboard.png`),
+        rendered by `renderUsageDashboard` over a representative week of spend
+        across five tenants. Fixed the share-bar layout while producing it: the
+        `td.share` cell was `display:flex`, which pulled it out of the table's
+        column-width model so the bar collapsed to its content width; the bar and
+        percentage now sit in an inner `.share-wrap` flex row, leaving the cell a
+        normal `width:34%` table cell, and the bar has a `min-width` so the track
+        is always visible.
   - [ ] Tagged release (version bump, publish-ready package).
 
 ## Definition of done (from spec)
