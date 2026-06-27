@@ -22,6 +22,7 @@ import {
   InMemoryBudgetStore,
   InMemoryMeterSink,
   meteringMiddleware,
+  usageHandler,
   type Policy,
 } from '../src/index.js';
 
@@ -97,6 +98,19 @@ console.log('Metered records:', sink.records);
 console.log('Token totals:', sink.totals());
 console.log('Spend (USD):', sink.totalCost());
 console.log('Spend by tenant:', sink.rollup('tenant'));
+
+// --- The /usage endpoint: the same spend-by-dimension view over HTTP. ---
+// `usageHandler` is a Web Fetch handler — mount it in Next.js / Hono / Bun / Deno
+// with one line (`export const GET = usageHandler({ source: () => sink.records })`).
+// Here we call it directly with a Request to show the JSON it returns.
+const usageEndpoint = usageHandler({ source: () => sink.records });
+const usageResponse = await usageEndpoint(
+  new Request('http://localhost/usage?dimension=tenant'),
+);
+console.log(
+  'GET /usage?dimension=tenant ->',
+  JSON.stringify(await usageResponse.json(), null, 2),
+);
 
 // --- Enforcement (M3 + M4 in the call path): govern spend per tenant. ---
 // Three tenants share one budget shape; we pre-load each to a different level so

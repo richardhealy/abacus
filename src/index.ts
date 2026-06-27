@@ -1,9 +1,10 @@
 /**
  * abacus — a cost-governance layer for LLM calls.
  *
- * v1 surface. Metering, attribution, pricing, budgets, the policy engine, and
- * its enforcement in the call path are in place; the `/usage` endpoint and
- * dashboard land in later milestones; see PROGRESS.md.
+ * v1 surface. Metering, attribution, pricing, budgets, the policy engine, its
+ * enforcement in the call path, OpenTelemetry observability, and the `/usage`
+ * spend-by-dimension endpoint are in place; the dashboard lands in M6; see
+ * PROGRESS.md.
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';
@@ -52,6 +53,21 @@ export type {
   OTelAttributes,
   OTelAttributeValue,
 } from './observability/gen-ai.js';
+
+// Usage (M5): the spend-by-dimension `/usage` endpoint. A pure report builder
+// plus a framework-agnostic Web Fetch handler over any record source.
+export { buildUsageReport } from './usage/report.js';
+export type {
+  UsageReport,
+  UsageReportOptions,
+  UsageWindow,
+  UsageTotals,
+} from './usage/report.js';
+export { usageHandler } from './usage/endpoint.js';
+export type {
+  UsageHandlerOptions,
+  UsageRecordSource,
+} from './usage/endpoint.js';
 
 // Pricing (M2): auditable price table + deterministic cost math.
 export { costOf, priceFor, computeCost } from './pricing/cost.js';

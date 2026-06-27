@@ -91,7 +91,7 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] 13 new unit tests — every branch on both paths, cost charged per branch,
         downshift fall-back, cache hit/miss, fail-open on read, surviving a failed
         charge, and unpriced-model handling.
-- **◐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
+- **☑ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
   - [x] `otelMeterSink` — a `MeterSink` that emits each metered call as
         OpenTelemetry GenAI telemetry through watchtower: one back-dated
         `gen_ai.*` span per call (started at `timestamp - latencyMs`, ended at
@@ -113,7 +113,19 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] 13 new unit tests — pure attribute mapping, span back-dating/kind/attrs,
         the three metrics + units, unpriced-cost skip, tracer-only / meter-only /
         both, custom operation name, and end-to-end through `meteringMiddleware`.
-  - [ ] `/usage` endpoint: spend-by-dimension rollups over a queryable sink.
+  - [x] `/usage` endpoint: spend-by-dimension rollups over a queryable source.
+        Pure `buildUsageReport(records, options)` filters records to a
+        `[since, until)` window and rolls them up by each requested dimension
+        (reusing `rollupByDimension`), returning `{ window, totals, byDimension }`.
+        `usageHandler({ source })` wraps it as a framework-agnostic Web Fetch
+        handler (`(Request) => Response`) — mounts in Next.js / Hono / Bun / Deno
+        / Workers in one line, no added dependency. Query params: `dimension`
+        (repeated or comma-separated), `since`, `until`; JSON `400`/`405`/`500`
+        on bad input / wrong method / source failure, never throwing.
+  - [x] 22 new unit tests — the pure report (totals, per-dimension rollups,
+        window edges, dimension subset, unattributed/custom key, unpriced cost,
+        empty) and the handler (JSON shape + content type, dimension parsing,
+        window query, async source, every error status).
 - **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
 
 ## Definition of done (from spec)
@@ -127,10 +139,11 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
       to the ledger. Both buffered and streaming paths.
 - [x] Budget accounting is correct under concurrent calls (tested) — `addSpend`
       is atomic in both stores; concurrent-charge tests assert exact totals.
-- [ ] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
-      Tracing-tool half done: `otelMeterSink` emits `gen_ai.*` spans (attributed
-      with `abacus.tenant`/`feature`/`user`) and an `abacus.cost.usd` counter
-      keyed by those dimensions. `/usage` endpoint still pending.
+- [x] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
+      Tracing tool: `otelMeterSink` emits `gen_ai.*` spans (attributed with
+      `abacus.tenant`/`feature`/`user`) and an `abacus.cost.usd` counter keyed by
+      those dimensions. `/usage`: `usageHandler` serves the spend-by-dimension
+      report as JSON over any record source. The dashboard (M6) renders this.
 
 ## Notes / decisions
 
@@ -224,6 +237,22 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   real `@opentelemetry/api` `Tracer`/`Meter` drops in with no runtime dependency.
   The attribute mapping is pure (`genAiSpanAttributes`/`genAiMetricAttributes`)
   and unit-tested in isolation, matching the project's decide-is-pure ethos.
+- **`/usage` is a pure report plus a Web-standard handler** (M5): the
+  spend-by-dimension view splits the same way the rest of abacus does — a pure,
+  deterministic `buildUsageReport(records, options)` (window-filter then roll up
+  by dimension via the shared `rollupByDimension`, so the endpoint and the
+  in-memory sink compute spend identically) and a thin `usageHandler` that only
+  parses the request and serializes the report. The handler is a **Web Fetch**
+  `(Request) => Response`, not Express-specific, because AI SDK 6 is built on web
+  standards: it drops into Next.js route handlers, Hono, Bun, Deno, and
+  Cloudflare Workers unchanged and adds no dependency. Records are read through a
+  `UsageRecordSource` seam (`() => MeterRecord[] | Promise<…>`) — the read-side
+  analogue of `MeterSink`'s write side — so the in-memory sink is a one-liner
+  (`source: () => sink.records`) and a durable store fetches its rows. The window
+  is `[since, until)` (since inclusive, until exclusive) so adjacent windows
+  partition records without double-counting. Like the call path, the endpoint
+  never throws: a failing source becomes a `500`, bad params a `400`, a non-`GET`
+  a `405`.
 - **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
   against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
   `ioredis` client drops in and abacus keeps its dependency surface to `ai` +

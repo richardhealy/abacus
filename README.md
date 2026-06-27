@@ -9,19 +9,21 @@ path** and can meter, attribute, cap, and downshift — all observable. It is bu
 as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
-> **Status:** early. Metering (**M0–M1**), pricing (**M2**), budgets (**M3**),
-> the policy engine (**M4**), and its **enforcement in the call path** are in
-> place — one-line wrapping that meters both the buffered (`generateText`) and
-> streaming (`streamText`) paths, normalized token metering, attribution by
-> tenant / feature / user with spend rollups, a pluggable sink, an auditable
-> price table, deterministic per-call cost, concurrency-safe soft/hard budgets
-> over daily/monthly windows (in-memory or Redis-backed), a pure policy engine
-> that turns a budget level into a downshift / cache / refuse decision, and an
-> enforcement middleware that *executes* that decision — downshifting,
-> serving cache, or refusing — and charges spend back to the budget, plus an
-> **OpenTelemetry sink** that emits metered spend as `gen_ai.*` spans and
-> metrics through [`watchtower`](spec.md). The `/usage` endpoint and a dashboard
-> are next. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> **Status:** Metering (**M0–M1**), pricing (**M2**), budgets (**M3**), the
+> policy engine (**M4**), its **enforcement in the call path**, and
+> **observability (M5)** are in place — one-line wrapping that meters both the
+> buffered (`generateText`) and streaming (`streamText`) paths, normalized token
+> metering, attribution by tenant / feature / user with spend rollups, a
+> pluggable sink, an auditable price table, deterministic per-call cost,
+> concurrency-safe soft/hard budgets over daily/monthly windows (in-memory or
+> Redis-backed), a pure policy engine that turns a budget level into a
+> downshift / cache / refuse decision, and an enforcement middleware that
+> *executes* that decision — downshifting, serving cache, or refusing — and
+> charges spend back to the budget, an **OpenTelemetry sink** that emits metered
+> spend as `gen_ai.*` spans and metrics through [`watchtower`](spec.md), and a
+> framework-agnostic **`/usage` endpoint** that serves the spend-by-dimension
+> view as JSON. A dashboard over it (**M6**) is next. See
+> [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -373,6 +375,56 @@ satisfy as-is. The pure attribute mappers (`genAiSpanAttributes`,
 `genAiMetricAttributes`) are exported too, for building the same telemetry over
 records from any sink. Like every sink, a throwing tracer/meter routes to
 metering's `onError` and never breaks the wrapped call.
+
+## Usage endpoint
+
+The traces above answer "where did this call's spend go?" in your tracing tool;
+**`/usage`** answers "what has each tenant / feature / user spent?" from your own
+service. `usageHandler` is a framework-agnostic **Web Fetch** handler —
+`(Request) => Response` — so it mounts in any Web-standard runtime in one line and
+adds no dependency:
+
+```ts
+import { usageHandler } from 'abacus';
+
+// Next.js App Router (app/usage/route.ts):
+export const GET = usageHandler({ source: () => sink.records });
+
+// Hono:        app.get('/usage', (c) => usage(c.req.raw));
+// Bun / Deno:  Bun.serve({ fetch: usage });   Deno.serve(usage);
+const usage = usageHandler({ source: () => sink.records });
+```
+
+The `source` is the read seam between the endpoint and wherever spend lives — the
+in-memory sink is a one-liner (`() => sink.records`); a durable sink returns a
+promise that fetches its rows. A `GET` returns the spend-by-dimension
+[`UsageReport`](src/usage/report.ts) as JSON:
+
+```jsonc
+{
+  "window": { "since": null, "until": null },
+  "totals": { "count": 3, "usage": { /* … */ }, "cost": 0.0037 },
+  "byDimension": {
+    "tenant":  [ { "key": "acme", "count": 1, "usage": { /* … */ }, "cost": 0.0012 }, /* … */ ],
+    "feature": [ /* … */ ],
+    "user":    [ /* … */ ]
+  }
+}
+```
+
+Three optional query parameters shape the report:
+
+- **`dimension`** — restrict the rollups, repeated (`?dimension=tenant&dimension=feature`)
+  or comma-separated (`?dimension=tenant,feature`). Defaults to all three.
+- **`since`** / **`until`** — window the report to a `[since, until)` range of
+  record timestamps (epoch ms); `since` is inclusive, `until` exclusive, so
+  adjacent windows partition spend without double-counting.
+
+The report itself is pure: `buildUsageReport(records, options)` is exported for
+building the same view without HTTP. The handler is hardened like the call path —
+it never throws: an unknown dimension or non-numeric bound is a `400`, a non-`GET`
+method a `405`, and a failing source a `500`. See it return a live report in
+[`examples/wrap-call.ts`](examples/wrap-call.ts).
 
 ## Development
 

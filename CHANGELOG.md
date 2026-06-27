@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- The `/usage` endpoint (completes milestone M5): `usageHandler({ source })` — a
+  framework-agnostic Web Fetch handler (`(Request) => Response`) that serves the
+  spend-by-dimension view as JSON. Mounts in Next.js / Hono / Bun / Deno /
+  Cloudflare Workers in one line with no added dependency, reading records through
+  a `UsageRecordSource` seam (`() => MeterRecord[] | Promise<…>`) — the read-side
+  analogue of `MeterSink` (`source: () => sink.records` for the in-memory sink).
+  Query params: `dimension` (repeated or comma-separated), and `since`/`until`
+  to window the report to a `[since, until)` range (since inclusive, until
+  exclusive). Returns JSON `200` with the report, `400` on bad params, `405` for a
+  non-`GET` method, and `500` if the source throws — it never propagates an
+  exception. This delivers the "spend by tenant/feature is visible via `/usage`"
+  definition-of-done item; the dashboard over it is M6.
+- `buildUsageReport(records, options)` — the pure, deterministic core behind the
+  endpoint: filters records to the window and rolls them up by each requested
+  dimension via the shared `rollupByDimension`, returning
+  `{ window, totals, byDimension }`. Exported (with `UsageReport`,
+  `UsageReportOptions`, `UsageWindow`, `UsageTotals`) for building the same view
+  without HTTP. The offline example now serves a live `/usage?dimension=tenant`
+  response; 22 new unit tests cover the report and the handler.
 - Observability (milestone M5, first half): `otelMeterSink` — a `MeterSink` that
   emits each metered call as OpenTelemetry **`gen_ai.*`** telemetry through
   watchtower. Per call it creates one back-dated `gen_ai.*` span (started at
