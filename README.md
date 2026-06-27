@@ -9,14 +9,16 @@ path** and can meter, attribute, cap, and downshift — all observable. It is bu
 as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
-> **Status:** early. Metering (**M0–M1**), pricing (**M2**), and budgets
-> (**M3**) are in place — one-line wrapping that meters both the buffered
-> (`generateText`) and streaming (`streamText`) paths, normalized token metering,
-> attribution by tenant / feature / user with spend rollups, a pluggable sink, an
-> auditable price table, deterministic per-call cost, and concurrency-safe
-> soft/hard budgets over daily/monthly windows (in-memory or Redis-backed). The
-> policy engine that enforces those budgets and the `/usage` endpoint are next.
-> See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> **Status:** early. Metering (**M0–M1**), pricing (**M2**), budgets (**M3**),
+> and the policy engine (**M4**) are in place — one-line wrapping that meters both
+> the buffered (`generateText`) and streaming (`streamText`) paths, normalized
+> token metering, attribution by tenant / feature / user with spend rollups, a
+> pluggable sink, an auditable price table, deterministic per-call cost,
+> concurrency-safe soft/hard budgets over daily/monthly windows (in-memory or
+> Redis-backed), and a pure policy engine that turns a budget level into a
+> downshift / cache / refuse decision. Executing that decision in the call path
+> and the `/usage` endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and
+> [`spec.md`](spec.md).
 
 ## Install
 
@@ -194,7 +196,7 @@ await budgets.check({ tenant: 'acme' });
 window, the `level` it has crossed (`ok` / `soft` / `hard`), and the `fraction`
 of the hard limit consumed. The budget layer only **measures**; deciding what to
 do when a level is crossed (downshift / cache / refuse) is the policy engine's
-job (next milestone), keeping the decision pure and testable.
+job (below), keeping the decision pure and testable.
 
 Spend lives in a `BudgetStore`. `InMemoryBudgetStore` is provided for tests and
 single-process use; `RedisBudgetStore` backs spend with Redis for multi-process
@@ -213,6 +215,50 @@ calls can never lose an increment — the overspend race. Windows are bucketed i
 UTC and Redis keys expire at the window boundary, so spend resets with no cron.
 `RedisBudgetStore` is written against a minimal client interface, so abacus adds
 no Redis dependency of its own.
+
+## Policy engine
+
+The budgets above **measure**; the policy engine **decides**. `decide` is a pure
+function — `(policy, budget states, request) → action` — that turns the level a
+call has crossed into one of `allow` / `downshift` / `cache` / `refuse`. It is
+side-effect free and unit-tested per branch; executing the action (swapping the
+model, serving cache, throwing) is the middleware's job.
+
+```ts
+import { decide, type Policy } from 'abacus';
+
+const policy: Policy = {
+  // On soft: downshift Opus → Haiku via the Gateway. On hard: refuse.
+  soft: {
+    kind: 'downshift',
+    to: { 'anthropic/claude-opus-4': 'anthropic/claude-haiku-4' },
+  },
+  hard: { kind: 'refuse' },
+};
+
+const states = await budgets.check({ tenant: 'acme' });
+const action = decide(policy, states, { modelId: 'anthropic/claude-opus-4' });
+
+switch (action.type) {
+  case 'allow':     break;                        // proceed as requested
+  case 'downshift': callWith(action.model);       // cheaper model
+  case 'cache':     serveCache();                 // skip the call
+  case 'refuse':    throw new Error(action.reason);
+}
+```
+
+A `Policy` sets a rule per level. The **defaults are conservative** — observe at
+soft, refuse at hard — so degradation is opt-in: a downshift needs an explicit
+target, because there is no universal cheaper model. That target is auditable in
+three forms — a fixed model string, a `{ requested → replacement }` map, or a
+function. When a downshift can't resolve a cheaper model for the requested one,
+it falls through to a configurable `else` (default `allow`, so the call still
+proceeds; set `else: { kind: 'refuse' }` to fail closed).
+
+When a call falls under several budgets, the **most severe** level governs
+(`hard` over `soft`, ties broken by fraction consumed). Every non-`allow` action
+carries the `BudgetState` that triggered it and a human-readable `reason`, so the
+executor can trace or surface *why* without re-deriving it.
 
 ## Development
 

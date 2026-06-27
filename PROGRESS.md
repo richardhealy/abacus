@@ -53,7 +53,23 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         spend across every budget a call falls under; `budgetLevel` /
         `evaluateBudget` derive `ok`/`soft`/`hard` purely (the seam for M4).
   - [x] 35 new unit tests (windowing, both stores incl. concurrency, ledger).
-- **☐ M4 — Policy engine.** Pure `(budget, request) → action`; downshift / cache / refuse, per-branch tests.
+- **☑ M4 — Policy engine.** Pure `(budget, request) → action`; downshift / cache / refuse, per-branch tests.
+  - [x] `PolicyAction` (discriminated union): `allow` / `downshift` (carries the
+        replacement + original model) / `cache` / `refuse` (carries the reason),
+        each non-`allow` action stamped with the triggering `BudgetState`.
+  - [x] `Policy` config: a `PolicyRule` per level (`soft` / `hard`), with safe
+        defaults — observe at soft, refuse at hard — so a policy must opt into
+        degradation by naming a downshift target.
+  - [x] `Downshift` target in three auditable forms (fixed string / record map /
+        function); `resolveDownshift` is pure and treats a self-target as no-op.
+  - [x] `decide(policy, states, request)` — pure, never throws: picks the most
+        severe budget level (`mostSevere`, hard > soft > ok, fraction tie-break)
+        and applies that level's rule. A downshift that can't resolve a cheaper
+        model falls through to a configurable `else` (default `allow`).
+  - [x] `describeBudgetState` builds the human-readable `reason` (overridable per
+        rule), denominated against the crossed level's limit.
+  - [x] 25 new unit tests — each branch (allow / downshift / cache / refuse, plus
+        the downshift fall-through and most-severe selection) tested in isolation.
 - **☐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
 - **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
 
@@ -62,7 +78,9 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
 - [x] A wrapped call is metered and attributed with one line of integration
       (wrap once; tag per call via `providerOptions.abacus`).
 - [ ] Crossing a soft limit downshifts (or caches); crossing a hard limit refuses
-      cleanly. *(M3 supplies the budget level; M4 wires it into the call path.)*
+      cleanly. *(M3 supplies the budget level; M4 turns it into a decision —
+      `decide` returns the downshift/cache/refuse action. Executing that decision
+      in the middleware call path is the next increment.)*
 - [x] Budget accounting is correct under concurrent calls (tested) — `addSpend`
       is atomic in both stores; concurrent-charge tests assert exact totals.
 - [ ] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
@@ -105,6 +123,20 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   uses server-side `INCRBYFLOAT`. A throwaway 1000-concurrent-charge test on each
   asserts the sum is exact. The store is clock-free (timestamps are passed in),
   so windowing stays pure and tests place spend in a chosen day/month.
+- **The policy decision is pure** (M4): `decide(policy, states, request)` is a
+  total function with no I/O — it takes the budget states a call falls under (from
+  the ledger) plus the requested model, and returns an `allow` / `downshift` /
+  `cache` / `refuse` action. This is the spec's design rule: *decide* is pure and
+  unit-testable per branch; *execute* (swap the model, serve cache, throw) is the
+  middleware's job in a later increment. The action carries its triggering
+  `BudgetState` and a reason so the executor can trace/log without re-deriving why.
+- **Conservative defaults, opt-in degradation** (M4): the default soft rule is
+  `allow` (observe only) and the default hard rule is `refuse`. Downshift/cache
+  never happen unless the operator configures them, because there is no universal
+  cheaper model — a downshift needs an explicit target. A downshift that can't
+  resolve a target for the requested model falls through to a configurable `else`
+  (default `allow`), so a non-downshiftable call proceeds rather than failing
+  closed; set `else: { kind: 'refuse' }` to fail closed instead.
 - **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
   against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
   `ioredis` client drops in and abacus keeps its dependency surface to `ai` +

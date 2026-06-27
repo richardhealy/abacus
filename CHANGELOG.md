@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-27
+- Policy engine (milestone M4): a pure `decide(policy, states, request) → action`
+  that turns the budget level a call has crossed into a decision —
+  `allow` / `downshift` (to a cheaper model) / `cache` / `refuse`. Modelled as a
+  discriminated `PolicyAction` union; each non-`allow` action carries the
+  triggering `BudgetState` and a human-readable `reason`. The decision is pure and
+  side-effect free (the spec's observation/enforcement split): the middleware will
+  *execute* it in a later increment.
+- `Policy` config holds a `PolicyRule` per level (`soft` / `hard`) with safe
+  defaults — observe at soft, refuse at hard — so degradation is opt-in. The
+  `downshift` rule's target is auditable in three forms (a fixed model string, a
+  `{ requested → replacement }` map, or a function); `resolveDownshift` resolves
+  it purely and treats a self-target as no-op. A downshift that can't resolve a
+  cheaper model falls through to a configurable `else` (default `allow`).
+- `mostSevere` (hard > soft > ok, fraction tie-break) selects the governing
+  budget; `describeBudgetState` builds the decision reason. The offline example
+  now derives a policy decision from the acme tenant's budget state; 25 new unit
+  tests cover each branch in isolation.
+
+### Added — 2026-06-27
 - Budgets (milestone M3): soft/hard spend limits per attribution scope
   (tenant / feature / user) over a `daily` or `monthly` window. A `BudgetStore`
   interface abstracts the durable counter, with two implementations — an

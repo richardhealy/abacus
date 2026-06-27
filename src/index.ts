@@ -1,9 +1,9 @@
 /**
  * abacus — a cost-governance layer for LLM calls.
  *
- * v1 surface. Metering, attribution, pricing, and budgets are in place; the
- * policy engine and the `/usage` endpoint land in later milestones; see
- * PROGRESS.md.
+ * v1 surface. Metering, attribution, pricing, budgets, and the policy engine
+ * are in place; wiring the policy into the call path and the `/usage` endpoint
+ * land in later milestones; see PROGRESS.md.
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';
@@ -58,3 +58,29 @@ export type {
 } from './budget/redis-store.js';
 export { BudgetLedger, budgetLevel, evaluateBudget } from './budget/ledger.js';
 export type { BudgetLedgerOptions } from './budget/ledger.js';
+
+// Policy engine (M4): pure `(budget state, request) → action`. Decides
+// allow / downshift / cache / refuse; the middleware executes the decision.
+export {
+  decide,
+  mostSevere,
+  resolveDownshift,
+  describeBudgetState,
+  DEFAULT_SOFT_RULE,
+  DEFAULT_HARD_RULE,
+} from './policy/engine.js';
+export type {
+  Policy,
+  PolicyRule,
+  AllowRule,
+  CacheRule,
+  RefuseRule,
+  DownshiftRule,
+  PolicyRequest,
+  PolicyAction,
+  AllowAction,
+  DownshiftAction,
+  CacheAction,
+  RefuseAction,
+  Downshift,
+} from './policy/types.js';

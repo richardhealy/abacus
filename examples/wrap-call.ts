@@ -16,10 +16,12 @@ import { generateText, streamText, wrapLanguageModel } from 'ai';
 import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test';
 import {
   BudgetLedger,
+  decide,
   defaultPrices,
   InMemoryBudgetStore,
   InMemoryMeterSink,
   meteringMiddleware,
+  type Policy,
 } from '../src/index.js';
 
 const usage = {
@@ -107,8 +109,19 @@ const budgets = new BudgetLedger({
   ],
 });
 const acmeRecord = sink.records.find((r) => r.attribution?.tenant === 'acme');
-const [acmeBudgetState] = await budgets.charge(
+const acmeStates = await budgets.charge(
   acmeRecord?.attribution,
   acmeRecord?.cost ?? 0,
 );
-console.log('Budget — acme (monthly):', acmeBudgetState);
+console.log('Budget — acme (monthly):', acmeStates[0]);
+
+// --- Policy engine (M4): turn budget state into a decision. ---
+// Pure `(budget state, request) → action`. On soft, downshift Opus → Haiku via
+// the Gateway; on hard, refuse. The acme call above pushed spend past the soft
+// limit, so the engine decides to downshift the next acme call.
+const policy: Policy = {
+  soft: { kind: 'downshift', to: { 'anthropic/claude-opus-4': 'anthropic/claude-haiku-4' } },
+  hard: { kind: 'refuse' },
+};
+const decision = decide(policy, acmeStates, { modelId: 'anthropic/claude-opus-4' });
+console.log('Policy decision for next acme call:', decision);
