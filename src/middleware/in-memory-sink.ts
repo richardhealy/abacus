@@ -5,16 +5,7 @@ import {
 } from '../attribution/rollup.js';
 import type { AttributionDimension } from '../attribution/types.js';
 import type { MeterRecord, MeterSink, TokenUsage } from './types.js';
-
-function emptyUsage(): TokenUsage {
-  return {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-    cachedInputTokens: 0,
-    reasoningTokens: 0,
-  };
-}
+import { zeroUsage } from './usage.js';
 
 /**
  * A {@link MeterSink} that buffers records in memory. Useful for tests, the
@@ -47,7 +38,7 @@ export class InMemoryMeterSink implements MeterSink {
       acc.cachedInputTokens += usage.cachedInputTokens;
       acc.reasoningTokens += usage.reasoningTokens;
       return acc;
-    }, emptyUsage());
+    }, zeroUsage());
   }
 
   /**

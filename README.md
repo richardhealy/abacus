@@ -10,9 +10,10 @@ as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
 > **Status:** early. Metering (**M0–M1**) and pricing (**M2**) are in place —
-> one-line wrapping, normalized token metering, attribution by tenant / feature /
-> user with spend rollups, a pluggable sink, an auditable price table, and
-> deterministic per-call cost. Budgets, the policy engine, and the `/usage`
+> one-line wrapping that meters both the buffered (`generateText`) and streaming
+> (`streamText`) paths, normalized token metering, attribution by tenant /
+> feature / user with spend rollups, a pluggable sink, an auditable price table,
+> and deterministic per-call cost. Budgets, the policy engine, and the `/usage`
 > endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
@@ -48,6 +49,16 @@ await generateText({ model, prompt: 'What is the capital of France?' });
 
 console.log(sink.totals());
 // → { inputTokens: 42, outputTokens: 8, totalTokens: 50, cachedInputTokens: 0, reasoningTokens: 0 }
+```
+
+The same wrap meters **streaming** calls too. Parts flow through untouched and
+the record is written when the stream drains, reading usage from the terminal
+`finish` part — so `streamText` is metered with no change to the streaming code:
+
+```ts
+const result = streamText({ model, prompt: 'Tell me about Paris.' });
+for await (const delta of result.textStream) process.stdout.write(delta);
+// ...one MeterRecord is captured once the stream completes...
 ```
 
 A runnable, offline version (using a mock model, no API keys) lives in

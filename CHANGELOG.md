@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-27
+- Streaming metering (completes milestone M1): `meteringMiddleware` now wraps the
+  streaming path (`streamText` / `streamObject`) as well as the buffered one. The
+  stream parts flow through a `TransformStream` untouched; usage is read from the
+  terminal `finish` part and one `MeterRecord` is written when the stream drains,
+  so the caller sees an identical stream and metering adds no buffering. Buffered
+  and streaming paths share a single record-building helper, so a streamed call
+  is attributed and priced exactly like a buffered one. A stream that closes
+  without a `finish` part records zero usage rather than nothing, and a throwing
+  sink routes to `onError` instead of surfacing as a stream error.
+- Factored a shared `zeroUsage()` helper (the neutral `TokenUsage`), now reused
+  by the in-memory sink's totals and the streaming fallback. The offline example
+  streams a third (tenant-tagged) call; 8 new unit + end-to-end tests.
+
+### Added — 2026-06-27
 - Attribution (milestone M1): tag metered calls by `tenant` / `feature` / `user`
   (plus free-form `tags`). The middleware reads per-call attribution from the
   `abacus` namespace of an AI SDK call's `providerOptions` and merges it over an

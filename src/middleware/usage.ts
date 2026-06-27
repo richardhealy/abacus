@@ -6,6 +6,23 @@ function n(value: number | undefined): number {
 }
 
 /**
+ * A {@link TokenUsage} with every count at `0`.
+ *
+ * The neutral element for summing usage, and the fallback when a call reports
+ * no usage at all — e.g. a stream that closes without a `finish` part, so there
+ * is nothing to normalize but the call still warrants a record.
+ */
+export function zeroUsage(): TokenUsage {
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    cachedInputTokens: 0,
+    reasoningTokens: 0,
+  };
+}
+
+/**
  * Flatten the AI SDK's nested {@link LanguageModelV3Usage} into abacus's flat
  * {@link TokenUsage}.
  *

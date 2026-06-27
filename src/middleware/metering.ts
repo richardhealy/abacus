@@ -1,4 +1,10 @@
-import type { LanguageModelV3Middleware } from '@ai-sdk/provider';
+import type {
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3Middleware,
+  LanguageModelV3StreamPart,
+  LanguageModelV3Usage,
+} from '@ai-sdk/provider';
 import {
   attributionFromProviderOptions,
   mergeAttribution,
@@ -6,8 +12,8 @@ import {
 import type { Attribution } from '../attribution/types.js';
 import { priceFor, costOf } from '../pricing/cost.js';
 import type { PriceTable } from '../pricing/types.js';
-import type { MeterRecord, MeterSink } from './types.js';
-import { normalizeUsage } from './usage.js';
+import type { MeterRecord, MeterSink, TokenUsage } from './types.js';
+import { normalizeUsage, zeroUsage } from './usage.js';
 
 export interface MeteringOptions {
   /** Where metered records are sent. */
@@ -62,10 +68,11 @@ function defaultOnUnpricedModel(modelId: string): void {
 }
 
 /**
- * AI SDK middleware that meters every `generate` call: it times the underlying
- * model call and records normalized token usage to the configured
- * {@link MeterSink}. Attach it with one line via `wrapLanguageModel` and the
- * caller never has to know.
+ * AI SDK middleware that meters every model call — both the buffered
+ * (`generateText` / `generateObject`) and the streaming (`streamText` /
+ * `streamObject`) path: it times the underlying call and records normalized
+ * token usage to the configured {@link MeterSink}. Attach it with one line via
+ * `wrapLanguageModel` and the caller never has to know.
  *
  * ```ts
  * const model = wrapLanguageModel({
@@ -74,11 +81,11 @@ function defaultOnUnpricedModel(modelId: string): void {
  * });
  * ```
  *
- * Recording happens after the model returns, so metering adds no latency to the
- * critical path beyond the sink write itself, and never alters the result.
- *
- * Streaming (`wrapStream`) metering arrives in the metering milestone; for now
- * this middleware meters the `generateText` / `generateObject` path.
+ * On the buffered path, recording happens after the model returns. On the
+ * streaming path the parts flow through untouched and the record is written
+ * when the stream completes, reading usage from the terminal `finish` part — so
+ * metering adds no latency to the critical path beyond the sink write itself,
+ * and never alters the result or the stream.
  */
 export function meteringMiddleware(
   options: MeteringOptions,
@@ -90,6 +97,60 @@ export function meteringMiddleware(
   const defaultAttribution = options.attribution;
   const warnedModels = new Set<string>();
 
+  /**
+   * Assemble a {@link MeterRecord} from a completed call's usage and timing,
+   * applying attribution and (when configured) cost. Shared by the buffered and
+   * streaming paths so both produce identical records.
+   */
+  function buildRecord(
+    model: LanguageModelV3,
+    params: LanguageModelV3CallOptions,
+    usage: TokenUsage,
+    startedAt: number,
+    completedAt: number,
+  ): MeterRecord {
+    const attribution = mergeAttribution(
+      defaultAttribution,
+      attributionFromProviderOptions(params.providerOptions),
+    );
+    const record: MeterRecord = {
+      modelId: model.modelId,
+      provider: model.provider,
+      timestamp: completedAt,
+      latencyMs: completedAt - startedAt,
+      usage,
+    };
+    if (attribution !== undefined) {
+      record.attribution = attribution;
+    }
+
+    if (prices !== undefined) {
+      const price = priceFor(model.modelId, prices);
+      if (price !== undefined) {
+        record.cost = costOf(usage, price).totalCost;
+      } else if (!warnedModels.has(model.modelId)) {
+        warnedModels.add(model.modelId);
+        onUnpricedModel(model.modelId);
+      }
+    }
+
+    return record;
+  }
+
+  /**
+   * Write a record to the sink, isolating any failure through `onError`.
+   * Metering is a cross-cutting concern and must never break the call it
+   * observes — including the streaming path, where a throwing sink would
+   * otherwise surface as a stream error to the caller.
+   */
+  async function emit(record: MeterRecord): Promise<void> {
+    try {
+      await options.sink.record(record);
+    } catch (error) {
+      onError(error, record);
+    }
+  }
+
   return {
     specificationVersion: 'v3',
 
@@ -98,39 +159,48 @@ export function meteringMiddleware(
       const result = await doGenerate();
       const completedAt = now();
 
-      const usage = normalizeUsage(result.usage);
-      const attribution = mergeAttribution(
-        defaultAttribution,
-        attributionFromProviderOptions(params.providerOptions),
+      await emit(
+        buildRecord(
+          model,
+          params,
+          normalizeUsage(result.usage),
+          startedAt,
+          completedAt,
+        ),
       );
-      const record: MeterRecord = {
-        modelId: model.modelId,
-        provider: model.provider,
-        timestamp: completedAt,
-        latencyMs: completedAt - startedAt,
-        usage,
-      };
-      if (attribution !== undefined) {
-        record.attribution = attribution;
-      }
-
-      if (prices !== undefined) {
-        const price = priceFor(model.modelId, prices);
-        if (price !== undefined) {
-          record.cost = costOf(usage, price).totalCost;
-        } else if (!warnedModels.has(model.modelId)) {
-          warnedModels.add(model.modelId);
-          onUnpricedModel(model.modelId);
-        }
-      }
-
-      try {
-        await options.sink.record(record);
-      } catch (error) {
-        onError(error, record);
-      }
 
       return result;
+    },
+
+    wrapStream: async ({ doStream, model, params }) => {
+      const startedAt = now();
+      const { stream, ...rest } = await doStream();
+
+      // Usage arrives on the terminal `finish` part. Capture it as the parts
+      // flow past, then record once the stream drains (flush). The parts are
+      // forwarded untouched, so the caller sees an identical stream.
+      let usage: LanguageModelV3Usage | undefined;
+      const meter = new TransformStream<
+        LanguageModelV3StreamPart,
+        LanguageModelV3StreamPart
+      >({
+        transform(part, controller) {
+          if (part.type === 'finish') {
+            usage = part.usage;
+          }
+          controller.enqueue(part);
+        },
+        flush: async () => {
+          const completedAt = now();
+          const normalized =
+            usage === undefined ? zeroUsage() : normalizeUsage(usage);
+          await emit(
+            buildRecord(model, params, normalized, startedAt, completedAt),
+          );
+        },
+      });
+
+      return { ...rest, stream: stream.pipeThrough(meter) };
     },
   };
 }

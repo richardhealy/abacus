@@ -14,7 +14,7 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] `InMemoryMeterSink` for tests / offline example.
   - [x] Runnable offline example (`npm run example`) + unit tests (13).
 
-- **◐ M1 — Metering.** Middleware records tokens/latency/cost, attribution tags.
+- **☑ M1 — Metering.** Middleware records tokens/latency/cost, attribution tags.
   - [x] Records tokens + latency on the `generate` path.
   - [x] Cost per record — computed from the price table when `prices` is set.
   - [x] Attribution dimensions (tenant / feature / user, plus free-form tags)
@@ -23,7 +23,11 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] `rollupByDimension` / `InMemoryMeterSink.rollup(dimension)` — spend &
         usage grouped by a dimension, sorted by cost, deterministic; the basis
         for the M5 `/usage` view.
-  - [ ] Meter the streaming path (`wrapStream`), accumulating usage from stream parts.
+  - [x] Meter the streaming path (`wrapStream`): parts flow through a tap that
+        reads usage from the terminal `finish` part and records once the stream
+        drains. Buffered and streaming paths share one record-building helper, so
+        a streamed call is priced and attributed identically. A stream that
+        closes without a `finish` part records zero usage rather than nothing.
 
 - **☑ M2 — Pricing.** Auditable price table, deterministic cost math, per-model tests.
   - [x] `ModelPrice` / `PriceTable` / `CostBreakdown` types; `defaultPrices` config.
@@ -53,7 +57,16 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   `@ai-sdk/provider`, added as an explicit dependency.
 - **Metering never breaks the call.** Sink failures route to `onError` (default:
   log) and the wrapped model call always returns. The sink is awaited so records
-  are not silently dropped; production sinks should be fast / async-batched.
+  are not silently dropped; production sinks should be fast / async-batched. On
+  the streaming path the sink is awaited inside the tap's `flush`, so a throwing
+  sink surfaces through `onError`, never as a stream error to the caller.
+- **Streaming is metered without buffering the stream** (M1): `wrapStream` pipes
+  the model's parts through a `TransformStream` that forwards each part untouched
+  and captures usage from the terminal `finish` part, recording once on `flush`.
+  Latency spans the whole call (start of `doStream` to stream drain), the
+  analogue of the buffered path's call duration. Both paths build the record
+  through one shared helper, so streamed spend is attributed and priced exactly
+  like buffered spend.
 - **Observation vs. enforcement split** (per spec): abacus owns enforcement;
   telemetry is emitted through watchtower. The `MeterSink` interface is the seam
   where an OTel/watchtower sink will plug in (M5).
