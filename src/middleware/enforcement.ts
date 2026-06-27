@@ -1,3 +1,15 @@
+/**
+ * The enforcement middleware — the M3 + M4 call-path wiring, and the *enforce*
+ * half of abacus (companion to {@link meteringMiddleware}). For every call {@link
+ * enforcementMiddleware} reads the budgets it falls under (via the {@link
+ * BudgetLedger}), runs the pure policy engine's {@link decide}, and executes the
+ * result: allow, downshift to a cheaper model, serve cache, or refuse with a
+ * {@link BudgetExceededError}. It then charges the executed model's cost back to
+ * the ledger, so a crossed limit governs the next call. Like metering, it fails
+ * open — a ledger outage never breaks the wrapped call.
+ *
+ * @module
+ */
 import type {
   LanguageModelV3,
   LanguageModelV3CallOptions,
@@ -97,6 +109,7 @@ export interface EnforcementErrorContext {
   attribution?: Attribution | undefined;
 }
 
+/** Configuration for {@link enforcementMiddleware}. */
 export interface EnforcementOptions {
   /**
    * The budget ledger this middleware reads before a call (to decide) and

@@ -1,3 +1,12 @@
+/**
+ * The policy vocabulary (M4): the {@link Policy} an operator configures (a {@link
+ * PolicyRule} per budget level) and the {@link PolicyAction} the engine produces
+ * (allow / downshift / cache / refuse, each carrying the {@link BudgetState} that
+ * triggered it). Both are discriminated unions, so {@link decide} is total and
+ * the middleware can switch on the result exhaustively.
+ *
+ * @module
+ */
 import type { BudgetState } from '../budget/types.js';
 
 /**

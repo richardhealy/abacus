@@ -1,3 +1,12 @@
+/**
+ * The `/usage` JSON endpoint (M5): {@link usageHandler} is a framework-agnostic
+ * Web Fetch handler that serves the spend-by-dimension {@link UsageReport} as
+ * JSON, reading records through the {@link UsageRecordSource} seam. Mounts in any
+ * Web-standard runtime in one line and never throws — bad query → `400`,
+ * non-`GET` → `405`, source failure → `500`.
+ *
+ * @module
+ */
 import type { AttributionDimension } from '../attribution/types.js';
 import type { MeterRecord } from '../middleware/types.js';
 import { buildUsageReport } from './report.js';
@@ -15,6 +24,7 @@ export type UsageRecordSource = () =>
   | readonly MeterRecord[]
   | Promise<readonly MeterRecord[]>;
 
+/** Options for {@link usageHandler}. */
 export interface UsageHandlerOptions {
   /** Where to read metered records from. */
   source: UsageRecordSource;

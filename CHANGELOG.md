@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — 2026-06-28
+- Documentation phase, deliverable (a): TSDoc `@module` headers across the whole
+  public surface. Every source module now opens with a `@module` block (the
+  barrel `src/index.ts` with `@packageDocumentation`) that states the module's
+  intent and its role in the architecture — metering, attribution, pricing,
+  budgets, the policy engine, enforcement, observability, and the usage/dashboard
+  surface — so TypeDoc (deliverable b) will render a described page per module
+  instead of attaching stray comments to private helpers. The per-symbol
+  function and type docs written during the build phase were already in place;
+  this pass also gave the few `*Options` and `RollupOptions` interfaces that
+  documented only their fields an interface-level summary. Comments only — no
+  behaviour change; the full `check` (lint + typecheck + 184 tests + build)
+  stays green.
+
 ## [1.0.0] - 2026-06-28
 
 ### Added — 2026-06-28

@@ -1,3 +1,12 @@
+/**
+ * {@link InMemoryMeterSink} — a {@link MeterSink} that buffers records in memory
+ * and answers the same spend questions a durable backend would: totals, total
+ * cost, and spend rolled up by an attribution dimension. The reference sink for
+ * tests, the offline example, and single-process use; production swaps in a
+ * durable or OpenTelemetry sink behind the same interface.
+ *
+ * @module
+ */
 import {
   rollupByDimension,
   type RollupEntry,

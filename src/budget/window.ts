@@ -6,7 +6,11 @@ import type { BudgetWindow } from './types.js';
  * Every budget window is bucketed by a string key derived from a timestamp. All
  * boundaries are computed in UTC so a window rolls over at the same instant for
  * every caller regardless of server timezone; this is what makes spend
- * accounting reproducible and free of daylight-saving surprises.
+ * accounting reproducible and free of daylight-saving surprises. {@link
+ * windowKey} buckets a timestamp and {@link windowExpirySeconds} gives a durable
+ * store the TTL that self-cleans the bucket at the boundary.
+ *
+ * @module
  */
 
 function pad2(n: number): string {

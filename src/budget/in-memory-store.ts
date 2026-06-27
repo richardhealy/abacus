@@ -1,3 +1,12 @@
+/**
+ * {@link InMemoryBudgetStore} — a {@link BudgetStore} backed by a `Map`.
+ * Concurrency-safe by construction: it reads and writes spend in one synchronous
+ * step, so under Node's event loop concurrent charges can't lose an increment.
+ * The reference store for tests and single-process use; production swaps in
+ * {@link RedisBudgetStore} behind the same interface.
+ *
+ * @module
+ */
 import type { BudgetScope } from './types.js';
 import { roundUsd, scopeKey, type BudgetStore } from './store.js';
 

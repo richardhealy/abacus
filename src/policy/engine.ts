@@ -1,3 +1,13 @@
+/**
+ * The policy engine (M4): the pure {@link decide} that turns the budget states a
+ * call falls under into a {@link PolicyAction} — the spec's
+ * `(budget state, request) → action`. It picks the {@link mostSevere} crossed
+ * level and applies that level's rule. Side-effect free and never throws, so it
+ * is unit-testable per branch; the enforcement middleware is the only part that
+ * executes the action.
+ *
+ * @module
+ */
 import type { BudgetLevel, BudgetState } from '../budget/types.js';
 import type {
   Downshift,

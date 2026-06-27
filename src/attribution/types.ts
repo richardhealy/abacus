@@ -1,4 +1,14 @@
 /**
+ * Attribution — who a metered call is for. This module defines the named axes,
+ * {@link AttributionDimension} (tenant / feature / user), and the {@link
+ * Attribution} a call carries. The set is deliberately small and shared because
+ * the budget engine keys limits on the same dimensions; arbitrary extra context
+ * rides in {@link Attribution.tags}.
+ *
+ * @module
+ */
+
+/**
  * Attribution dimensions: the named axes spend is grouped and budgeted by.
  *
  * These mirror the spec's "tenant / feature / user" attribution. The budget

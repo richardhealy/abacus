@@ -1,3 +1,13 @@
+/**
+ * The pure mapping from a {@link MeterRecord} to OpenTelemetry GenAI telemetry
+ * (M5): the semantic-convention attribute keys and the functions that build a
+ * span's or metric's attribute bag ({@link genAiSpanAttributes}, {@link
+ * genAiMetricAttributes}, {@link attributionAttributes}, {@link spanName}). Pure
+ * and dependency-free, so it is unit-testable in isolation; {@link otelMeterSink}
+ * is what actually emits it.
+ *
+ * @module
+ */
 import type { Attribution } from '../attribution/types.js';
 import type { MeterRecord } from '../middleware/types.js';
 

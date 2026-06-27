@@ -1,3 +1,11 @@
+/**
+ * The bundled {@link defaultPrices} table: published-rate list prices, in USD per
+ * 1M tokens, so the package prices common models out of the box. Deliberately
+ * plain, auditable data — a deployment with negotiated rates passes its own
+ * {@link PriceTable} to override it without code changes.
+ *
+ * @module
+ */
 import type { PriceTable } from './types.js';
 
 /**

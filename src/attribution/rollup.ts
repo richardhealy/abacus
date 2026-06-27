@@ -1,3 +1,12 @@
+/**
+ * Rolling metered records up by attribution dimension. {@link rollupByDimension}
+ * groups records by a tenant / feature / user value and sums their usage and
+ * cost, sorted by cost so the priciest leads — the spend-by-dimension view the
+ * in-memory sink, the `/usage` endpoint, and the dashboard all share. Pure, so
+ * every surface computes spend identically.
+ *
+ * @module
+ */
 import type { MeterRecord, TokenUsage } from '../middleware/types.js';
 import type { AttributionDimension } from './types.js';
 
@@ -21,6 +30,7 @@ export interface RollupEntry {
   cost: number;
 }
 
+/** Options for {@link rollupByDimension}. */
 export interface RollupOptions {
   /** Group key for records missing the dimension. Defaults to {@link UNATTRIBUTED_KEY}. */
   unattributedKey?: string;

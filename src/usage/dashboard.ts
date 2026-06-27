@@ -1,3 +1,13 @@
+/**
+ * The spend dashboard (M6): {@link renderUsageDashboard} renders a {@link
+ * UsageReport} as a self-contained HTML page (headline totals plus one table per
+ * dimension with share bars), and {@link dashboardHandler} is the HTML twin of
+ * {@link usageHandler} over the same query surface. Pure, dependency-free, and
+ * HTML-escaped — an attacker-controlled tenant id can't inject markup, and the
+ * output drops into any response or a static file.
+ *
+ * @module
+ */
 import type { RollupEntry } from '../attribution/rollup.js';
 import {
   ATTRIBUTION_DIMENSIONS,

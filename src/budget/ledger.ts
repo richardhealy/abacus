@@ -1,3 +1,13 @@
+/**
+ * The {@link BudgetLedger}: the bridge from attribution to budgets. Given an
+ * attributed cost it charges every budget the call falls under and reports each
+ * resulting {@link BudgetState}; {@link BudgetLedger.check} reads that state
+ * without charging — the seam the enforcement middleware reads before a call. The
+ * pure {@link budgetLevel} / {@link evaluateBudget} derive the crossed level,
+ * which the policy engine maps to an action.
+ *
+ * @module
+ */
 import type { Attribution } from '../attribution/types.js';
 import { roundUsd, type BudgetStore } from './store.js';
 import type {
@@ -44,6 +54,7 @@ function scopeOf(budget: Budget): BudgetScope {
   };
 }
 
+/** Options for the {@link BudgetLedger}. */
 export interface BudgetLedgerOptions {
   /** The durable store spend accumulates into. */
   store: BudgetStore;

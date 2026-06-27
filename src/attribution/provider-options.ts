@@ -1,3 +1,13 @@
+/**
+ * Reading per-call attribution off an AI SDK call's `providerOptions`. {@link
+ * attributionFromProviderOptions} coerces the `abacus` namespace into an {@link
+ * Attribution} (ignoring anything malformed — attribution must never break the
+ * call), and {@link mergeAttribution} layers a per-call value over a middleware's
+ * static default. Reading from `providerOptions` is what keeps integration to one
+ * line: the same wrapped model serves every tenant.
+ *
+ * @module
+ */
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider';
 import type { Attribution } from './types.js';
 

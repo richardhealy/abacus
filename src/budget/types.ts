@@ -1,3 +1,12 @@
+/**
+ * The budget vocabulary (M3): {@link Budget} (a soft/hard spend cap for one
+ * attribution scope over a {@link BudgetWindow}), the {@link BudgetScope} a store
+ * accumulates against, and the read-side {@link BudgetState} / {@link BudgetLevel}
+ * the policy engine consumes. The budget layer only *measures* — deciding what to
+ * do when a level is crossed lives in `policy/`.
+ *
+ * @module
+ */
 import type { AttributionDimension } from '../attribution/types.js';
 
 /**

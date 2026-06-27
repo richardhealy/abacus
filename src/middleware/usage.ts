@@ -1,3 +1,12 @@
+/**
+ * Token-usage normalization at the metering boundary. {@link normalizeUsage}
+ * flattens the AI SDK's nested, partly-undefined usage shape into abacus's flat
+ * {@link TokenUsage}, and {@link zeroUsage} is the neutral element used for
+ * summing and as the fallback when a call reports no usage. Doing this once, here,
+ * is what lets cost math and rollups downstream never guard for missing fields.
+ *
+ * @module
+ */
 import type { LanguageModelV3Usage } from '@ai-sdk/provider';
 import type { TokenUsage } from './types.js';
 

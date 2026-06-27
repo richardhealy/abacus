@@ -1,3 +1,12 @@
+/**
+ * {@link buildUsageReport} (M5): the pure core of the `/usage` view. It windows
+ * records to `[since, until)` and rolls them up by each requested dimension via
+ * the shared {@link rollupByDimension}, returning a {@link UsageReport} of totals
+ * plus per-dimension spend. Pure and HTTP-free, so the JSON endpoint, the
+ * dashboard, and an offline snapshot all compute spend the same way.
+ *
+ * @module
+ */
 import { rollupByDimension, type RollupEntry } from '../attribution/rollup.js';
 import {
   ATTRIBUTION_DIMENSIONS,
@@ -43,6 +52,7 @@ export interface UsageReport {
   byDimension: Partial<Record<AttributionDimension, RollupEntry[]>>;
 }
 
+/** Options for {@link buildUsageReport}. */
 export interface UsageReportOptions {
   /**
    * Which attribution dimensions to roll up by. Defaults to all of

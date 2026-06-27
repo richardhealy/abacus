@@ -1,3 +1,13 @@
+/**
+ * {@link otelMeterSink} (M5): a {@link MeterSink} that emits each metered call as
+ * OpenTelemetry GenAI telemetry — the observe-through-watchtower half of abacus.
+ * Each call becomes one back-dated `gen_ai.*` span and/or the GenAI metrics, plus
+ * an `abacus.cost.usd` counter. Written against the structural {@link
+ * OTelTracerLike} / {@link OTelMeterLike} seams (which a real OTel `Tracer` /
+ * `Meter` satisfy), so abacus keeps no runtime OpenTelemetry dependency.
+ *
+ * @module
+ */
 import type { MeterRecord, MeterSink } from '../middleware/types.js';
 import {
   attributionAttributes,
@@ -80,6 +90,7 @@ export interface OTelMeterLike {
   createCounter(name: string, options?: OTelInstrumentOptions): OTelCounterLike;
 }
 
+/** Options for {@link otelMeterSink}; supply a tracer, a meter, or both. */
 export interface OTelMeterSinkOptions {
   /**
    * Tracer to emit GenAI spans to. Provide a tracer, a meter, or both — at least

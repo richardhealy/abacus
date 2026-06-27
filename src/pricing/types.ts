@@ -1,3 +1,12 @@
+/**
+ * The pricing vocabulary: {@link ModelPrice} (a model's list price in USD per 1M
+ * tokens), {@link PriceTable} (those prices keyed by model id), and {@link
+ * CostBreakdown} (the per-category cost of one call). Plain data, kept separate
+ * from the cost math in `cost.ts`, so a deployment can audit or override prices
+ * without touching the arithmetic.
+ *
+ * @module
+ */
 import type { TokenUsage } from '../middleware/types.js';
 
 /**

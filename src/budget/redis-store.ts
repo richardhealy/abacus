@@ -1,3 +1,12 @@
+/**
+ * {@link RedisBudgetStore} — a multi-process {@link BudgetStore} backed by Redis.
+ * Spend is incremented with the atomic `INCRBYFLOAT` (no overspend race across
+ * processes) and each window bucket expires at the window boundary, so spend
+ * resets with no cron. Written against the minimal structural {@link RedisLike}
+ * client, so abacus adds no runtime Redis dependency.
+ *
+ * @module
+ */
 import type { BudgetScope } from './types.js';
 import { roundUsd, scopeKey, type BudgetStore } from './store.js';
 import { windowExpirySeconds } from './window.js';
@@ -23,6 +32,7 @@ export interface RedisLike {
   get(key: string): Promise<string | null>;
 }
 
+/** Options for {@link RedisBudgetStore}. */
 export interface RedisBudgetStoreOptions {
   /**
    * Prefix prepended to every key (before the `abacus:budget:` namespace),

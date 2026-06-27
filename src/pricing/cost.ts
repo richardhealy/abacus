@@ -1,3 +1,12 @@
+/**
+ * Deterministic cost math (M2). {@link priceFor} looks a model up in a {@link
+ * PriceTable} (exact id, then bare-id fallback), {@link costOf} turns usage and a
+ * price into a per-category {@link CostBreakdown}, and {@link computeCost}
+ * combines the two. Every amount is rounded to nano-dollars so summing thousands
+ * of small costs never drifts — the property that makes spend auditable.
+ *
+ * @module
+ */
 import type { TokenUsage } from '../middleware/types.js';
 import type { CostBreakdown, ModelPrice, PriceTable } from './types.js';
 

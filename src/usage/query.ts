@@ -1,3 +1,12 @@
+/**
+ * The shared `/usage` query parsing: {@link usageReportOptionsFromQuery} turns the
+ * `dimension` / `since` / `until` parameters into {@link UsageReportOptions},
+ * returning a {@link UsageQueryError} (never throwing) on bad input so a handler
+ * maps it to a `400`. The JSON endpoint and the HTML dashboard both parse through
+ * here, so their query surface can never drift.
+ *
+ * @module
+ */
 import {
   ATTRIBUTION_DIMENSIONS,
   type AttributionDimension,

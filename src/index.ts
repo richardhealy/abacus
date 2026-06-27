@@ -1,10 +1,16 @@
 /**
  * abacus — a cost-governance layer for LLM calls.
  *
- * v1 surface. Metering, attribution, pricing, budgets, the policy engine, its
+ * This is the package entry point: it re-exports the public surface of every
+ * module — metering, attribution, pricing, budgets, the policy engine, its
  * enforcement in the call path, OpenTelemetry observability, the `/usage`
- * spend-by-dimension endpoint, and the HTML dashboard over it (M6) are in place;
- * see PROGRESS.md.
+ * spend-by-dimension endpoint, and the HTML dashboard over it. The two
+ * middlewares — {@link meteringMiddleware} to *observe* and {@link
+ * enforcementMiddleware} to *enforce* — are the integration points; everything
+ * else is the seams and pure helpers they are built from. See `spec.md` for the
+ * design and `PROGRESS.md` for status.
+ *
+ * @packageDocumentation
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';

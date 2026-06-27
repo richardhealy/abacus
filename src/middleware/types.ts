@@ -1,3 +1,12 @@
+/**
+ * The core metering vocabulary every other module speaks: {@link TokenUsage}
+ * (normalized, flat token counts), {@link MeterRecord} (one metered call), and
+ * the {@link MeterSink} seam records are written to. Deliberately dependency-free
+ * data shapes, so attribution, pricing, budgets, and observability all build on
+ * them without a dependency cycle.
+ *
+ * @module
+ */
 import type { Attribution } from '../attribution/types.js';
 
 /**

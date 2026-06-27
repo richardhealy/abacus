@@ -1,3 +1,13 @@
+/**
+ * The metering middleware (M0–M1) — the *observe* half of abacus. {@link
+ * meteringMiddleware} wraps any AI SDK model in one line and records a {@link
+ * MeterRecord} (normalized usage, latency, attribution, and — with a price table
+ * — cost) to a {@link MeterSink} for every buffered and streaming call. It only
+ * observes; {@link enforcementMiddleware} is the companion that acts on spend.
+ * Metering never breaks the wrapped call: a throwing sink routes to `onError`.
+ *
+ * @module
+ */
 import type {
   LanguageModelV3,
   LanguageModelV3CallOptions,
@@ -15,6 +25,7 @@ import type { PriceTable } from '../pricing/types.js';
 import type { MeterRecord, MeterSink, TokenUsage } from './types.js';
 import { normalizeUsage, zeroUsage } from './usage.js';
 
+/** Configuration for {@link meteringMiddleware}. */
 export interface MeteringOptions {
   /** Where metered records are sent. */
   sink: MeterSink;

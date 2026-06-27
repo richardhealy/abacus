@@ -173,11 +173,15 @@ The build is complete (**M0–M6**, 184 tests green), so the remaining work is t
 documentation phase: making the project understandable, runnable, and integrable
 without reading every line of source. One deliverable per run, in priority order.
 
-- [ ] **a. Doc comments (TSDoc).** `@module` / doc comments across the public
+- [x] **a. Doc comments (TSDoc).** `@module` / doc comments across the public
       surface — every exported module, function, and type in `src/` (middleware,
-      budget, policy, pricing, attribution, usage, observability). Explain intent
-      and non-obvious behaviour, not the obvious. Re-run the build and tests
-      after, since TSDoc `@example` blocks can break the build.
+      budget, policy, pricing, attribution, usage, observability). Every source
+      module now opens with a `@module` header (the barrel `index.ts` with
+      `@packageDocumentation`) stating its intent and role in the architecture;
+      the per-symbol function/type docs from the build phase were already in
+      place, and the few `*Options` / `RollupOptions` interfaces that documented
+      only their fields gained an interface-level summary. The full `check`
+      (lint + typecheck + 184 tests + build) stays green.
 - [ ] **b. API reference.** Generate TypeDoc from the doc comments for the
       library surface, and write `docs/api.md` for the HTTP surface — the
       `/usage` (JSON) and dashboard (HTML) handlers: methods, query params

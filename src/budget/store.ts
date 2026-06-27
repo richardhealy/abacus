@@ -1,3 +1,12 @@
+/**
+ * The {@link BudgetStore} seam — a durable counter of spend per scope and window,
+ * where Redis (or another backend) plugs in, mirroring how {@link MeterSink}
+ * abstracts the metering destination — plus the shared key/rounding helpers
+ * ({@link scopeKey}, {@link roundUsd}). The store stays a dumb, concurrency-safe
+ * spend ledger; evaluating limits against it is the {@link BudgetLedger}'s job.
+ *
+ * @module
+ */
 import type { BudgetScope } from './types.js';
 import { windowKey } from './window.js';
 
