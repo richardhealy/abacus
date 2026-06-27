@@ -24,8 +24,10 @@ without the caller knowing.
 > framework-agnostic **`/usage` endpoint** that serves the spend-by-dimension
 > view as JSON, and an **HTML dashboard** (**M6**) that renders the same view as a
 > self-contained, dependency-free page — see the screenshot under
-> [Dashboard](#dashboard). A tagged release closes out M6. See
-> [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
+> [Dashboard](#dashboard). The v1 spec is now fully implemented across **M0–M6**,
+> the full suite (184 tests) is green, and the API is tagged **`v1.0.0`**. See
+> [`PROGRESS.md`](PROGRESS.md), [`CHANGELOG.md`](CHANGELOG.md), and
+> [`spec.md`](spec.md).
 
 ## Install
 

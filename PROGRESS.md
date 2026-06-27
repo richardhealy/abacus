@@ -126,7 +126,7 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         window edges, dimension subset, unattributed/custom key, unpriced cost,
         empty) and the handler (JSON shape + content type, dimension parsing,
         window query, async source, every error status).
-- **◐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
+- **☑ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
   - [x] `renderUsageDashboard(report, { title? })` — a pure, deterministic renderer
         that turns a `UsageReport` into a **self-contained HTML page**: headline
         totals (spend / calls / tokens) plus one table per dimension, each row
@@ -158,7 +158,14 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         percentage now sit in an inner `.share-wrap` flex row, leaving the cell a
         normal `width:34%` table cell, and the bar has a `min-width` so the track
         is always visible.
-  - [ ] Tagged release (version bump, publish-ready package).
+  - [x] Tagged release `v1.0.0` — every milestone and definition-of-done item is
+        implemented and the full suite (184 tests) is green, so the public API is
+        tagged stable at `1.0.0`. Made the package publish-ready: version bumped
+        from `0.0.0`, a `LICENSE` file added (MIT, matching the declared
+        `license`), `repository`/`homepage`/`bugs`/`author` metadata,
+        `sideEffects: false` for tree-shaking, `LICENSE` in the published `files`,
+        and a `prepublishOnly` gate that runs the full `check` (lint + typecheck +
+        test + build) so a broken build can never publish.
 
 ## Definition of done (from spec)
 

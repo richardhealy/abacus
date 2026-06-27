@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-28
+
 ### Added — 2026-06-28
+- Release **1.0.0** (completes milestone M6 and the v1 spec) — every milestone
+  (M0–M6) and every definition-of-done item is implemented and the full suite
+  (184 tests) is green, so the API is tagged stable at `1.0.0`. Made the package
+  publish-ready: bumped the version from `0.0.0`, added a `LICENSE` file (MIT, to
+  match the long-declared `license` field), `repository` / `homepage` / `bugs` /
+  `author` metadata, `sideEffects: false` so bundlers can tree-shake the unused
+  surface, `LICENSE` to the published `files`, and a `prepublishOnly` script that
+  runs the full `check` (lint + typecheck + test + build) so a broken build can
+  never be published.
 - Dashboard screenshot in the README (`docs/dashboard.png`) — a render of the
   spend-by-dimension dashboard over a representative week of spend across five
   tenants (the Opus-heavy `acme` tenant dominating the bill), produced by
@@ -195,3 +206,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `totals()`, and `clear()`.
 - Runnable offline example (`npm run example`) showing the one-line wrap, plus
   13 unit tests covering usage normalization, the sink, and the middleware.
+
+[Unreleased]: https://github.com/richardhealy/abacus/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/richardhealy/abacus/releases/tag/v1.0.0

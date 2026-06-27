@@ -1,9 +1,19 @@
 {
   "name": "abacus",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "A cost-governance layer for LLM calls: meters and attributes every token, enforces per-tenant budgets, and degrades gracefully instead of silently overspending.",
   "license": "MIT",
+  "author": "Richard Fernandez",
+  "homepage": "https://github.com/richardhealy/abacus#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/richardhealy/abacus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/richardhealy/abacus/issues"
+  },
   "type": "module",
+  "sideEffects": false,
   "engines": {
     "node": ">=20"
   },
@@ -19,7 +29,8 @@
   "files": [
     "dist",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
@@ -28,7 +39,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "example": "tsx examples/wrap-call.ts",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "prepublishOnly": "npm run check"
   },
   "keywords": [
     "ai",
