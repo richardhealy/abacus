@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — 2026-06-28
+- Enforcement in the call path: `enforcementMiddleware` *executes* the policy
+  decision from M4 — the companion to `meteringMiddleware`. Before each call it
+  reads the budgets the call falls under (`BudgetLedger.check`), runs `decide`,
+  and acts: **allow** (run as requested), **downshift** (run a cheaper model via a
+  `resolveModel` seam, falling back to the requested model if the target can't be
+  resolved), **cache** (serve a `GovernanceCache` hit, else fall through to the
+  live call), or **refuse** (throw `BudgetExceededError`). It then charges the
+  *executed* model's cost back to the ledger, so a downshift accrues the cheaper
+  rate and a crossed limit governs the next call. Both the buffered and streaming
+  paths are enforced. This completes the spec's "soft → downshift/cache, hard →
+  refuse" definition-of-done item.
+- `BudgetExceededError` (carries the triggering `BudgetState` and reason),
+  `GovernanceCache` (optional read-through cache hook), and `ModelResolver` are
+  exported. Enforcement is non-breaking: a ledger read/write failure routes to
+  `onError` and the call fails open; an unpriced executed model is surfaced via
+  `onUnpricedModel` rather than silently uncharged. The offline example now runs a
+  metered **and** governed model across three tenants to show allow / downshift /
+  refuse; 13 new unit tests cover every branch on both paths.
+
 ### Added — 2026-06-27
 - Policy engine (milestone M4): a pure `decide(policy, states, request) → action`
   that turns the budget level a call has crossed into a decision —

@@ -10,15 +10,17 @@ as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
 > **Status:** early. Metering (**M0–M1**), pricing (**M2**), budgets (**M3**),
-> and the policy engine (**M4**) are in place — one-line wrapping that meters both
-> the buffered (`generateText`) and streaming (`streamText`) paths, normalized
-> token metering, attribution by tenant / feature / user with spend rollups, a
-> pluggable sink, an auditable price table, deterministic per-call cost,
-> concurrency-safe soft/hard budgets over daily/monthly windows (in-memory or
-> Redis-backed), and a pure policy engine that turns a budget level into a
-> downshift / cache / refuse decision. Executing that decision in the call path
-> and the `/usage` endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and
-> [`spec.md`](spec.md).
+> the policy engine (**M4**), and its **enforcement in the call path** are in
+> place — one-line wrapping that meters both the buffered (`generateText`) and
+> streaming (`streamText`) paths, normalized token metering, attribution by
+> tenant / feature / user with spend rollups, a pluggable sink, an auditable
+> price table, deterministic per-call cost, concurrency-safe soft/hard budgets
+> over daily/monthly windows (in-memory or Redis-backed), a pure policy engine
+> that turns a budget level into a downshift / cache / refuse decision, and an
+> enforcement middleware that *executes* that decision — downshifting,
+> serving cache, or refusing — and charges spend back to the budget. The
+> `/usage` endpoint and a dashboard are next. See [`PROGRESS.md`](PROGRESS.md)
+> and [`spec.md`](spec.md).
 
 ## Install
 
@@ -259,6 +261,69 @@ When a call falls under several budgets, the **most severe** level governs
 (`hard` over `soft`, ties broken by fraction consumed). Every non-`allow` action
 carries the `BudgetState` that triggered it and a human-readable `reason`, so the
 executor can trace or surface *why* without re-deriving it.
+
+## Enforcement
+
+The policy engine decides; **`enforcementMiddleware` executes** — the companion to
+`meteringMiddleware`, sitting in the same call path. For every call it reads the
+budgets the call falls under, asks the engine what to do, and acts on it:
+**downshift** to a cheaper model, **serve cache**, or **refuse** — then charges the
+executed call's cost back to the budget so the next call sees the updated spend.
+Wrapping stays one line; the caller never changes:
+
+```ts
+import {
+  wrapLanguageModel,
+} from 'ai';
+import {
+  enforcementMiddleware,
+  meteringMiddleware,
+  BudgetExceededError,
+  defaultPrices,
+} from 'abacus';
+
+const model = wrapLanguageModel({
+  model: gateway('anthropic/claude-opus-4'),
+  middleware: [
+    enforcementMiddleware({
+      ledger: budgets,           // the BudgetLedger from above
+      policy,                    // downshift on soft, refuse on hard
+      prices: defaultPrices,     // cost charged back to the ledger
+      resolveModel: (id) => gateway(id), // turn a downshift target id into a model
+    }),
+    meteringMiddleware({ sink, prices: defaultPrices }),
+  ],
+});
+
+try {
+  await generateText({
+    model,
+    prompt: 'What is the capital of France?',
+    providerOptions: { abacus: { tenant: 'acme' } },
+  });
+  // → allowed, or transparently downshifted to Haiku once acme crosses its soft limit
+} catch (err) {
+  if (err instanceof BudgetExceededError) {
+    // → refused once acme crosses its hard limit; err.trigger names the budget
+  }
+}
+```
+
+`resolveModel` is the seam a **downshift** needs to actually call a cheaper model
+(the engine picks the target id; this turns it into a runnable model — a gateway
+call or a `createProviderRegistry` lookup). If it can't resolve a target, the call
+falls back to the requested model rather than failing. A **cache** decision is
+served through an optional `cache` hook (abacus does not own a cache); a miss falls
+through to the live call. A **refuse** decision throws `BudgetExceededError`,
+carrying the triggering `BudgetState`.
+
+Enforcement is a cross-cutting concern and **never breaks the wrapped call**: a
+ledger read or write failure is routed to `onError` and the call **fails open**
+(proceeds) rather than erroring. The decision uses spend *before* the call and the
+charge updates it *after* — a call's own cost isn't known until it returns, so
+crossing a limit governs the *next* call. Both the buffered and streaming paths are
+enforced. See it run across allow / downshift / refuse in
+[`examples/wrap-call.ts`](examples/wrap-call.ts).
 
 ## Development
 

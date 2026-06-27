@@ -1,15 +1,28 @@
 /**
  * abacus — a cost-governance layer for LLM calls.
  *
- * v1 surface. Metering, attribution, pricing, budgets, and the policy engine
- * are in place; wiring the policy into the call path and the `/usage` endpoint
- * land in later milestones; see PROGRESS.md.
+ * v1 surface. Metering, attribution, pricing, budgets, the policy engine, and
+ * its enforcement in the call path are in place; the `/usage` endpoint and
+ * dashboard land in later milestones; see PROGRESS.md.
  */
 export { meteringMiddleware } from './middleware/metering.js';
 export type { MeteringOptions } from './middleware/metering.js';
 export { InMemoryMeterSink } from './middleware/in-memory-sink.js';
 export { normalizeUsage } from './middleware/usage.js';
 export type { MeterRecord, MeterSink, TokenUsage } from './middleware/types.js';
+
+// Enforcement (M4 wiring): execute the policy decision in the call path —
+// downshift / cache / refuse — and charge spend back to the ledger.
+export {
+  enforcementMiddleware,
+  BudgetExceededError,
+} from './middleware/enforcement.js';
+export type {
+  EnforcementOptions,
+  EnforcementErrorContext,
+  GovernanceCache,
+  ModelResolver,
+} from './middleware/enforcement.js';
 
 // Pricing (M2): auditable price table + deterministic cost math.
 export { costOf, priceFor, computeCost } from './pricing/cost.js';

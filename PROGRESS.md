@@ -70,6 +70,27 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         rule), denominated against the crossed level's limit.
   - [x] 25 new unit tests — each branch (allow / downshift / cache / refuse, plus
         the downshift fall-through and most-severe selection) tested in isolation.
+- **☑ Enforcement (M3 + M4 in the call path).** `enforcementMiddleware` executes
+  the policy decision and charges spend — the companion to `meteringMiddleware`.
+  - [x] `enforcementMiddleware`: before each call it reads the budgets the call
+        falls under (`BudgetLedger.check`), runs `decide`, and executes the
+        action — **allow** (run as requested), **downshift** (run a cheaper model
+        via a `resolveModel` seam, falling back to the requested model if the
+        target can't be resolved), **cache** (serve a `GovernanceCache` hit, else
+        fall through to the live call), **refuse** (throw `BudgetExceededError`).
+  - [x] After any executed call it charges the *executed* model's cost back to the
+        ledger (so a downshift accrues the cheaper rate), priced from the table —
+        decision reads spend before, charge updates it after, so a crossed limit
+        governs the next call.
+  - [x] Both the buffered and streaming paths enforced; the stream charges once it
+        drains via the same non-buffering tap the metering path uses.
+  - [x] Cross-cutting and non-breaking: a ledger read/write failure routes to
+        `onError` and the call **fails open** rather than erroring; an unpriced
+        executed model is surfaced via `onUnpricedModel`, not charged.
+  - [x] `BudgetExceededError` carries the triggering `BudgetState` and reason.
+  - [x] 13 new unit tests — every branch on both paths, cost charged per branch,
+        downshift fall-back, cache hit/miss, fail-open on read, surviving a failed
+        charge, and unpriced-model handling.
 - **☐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
 - **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
 
@@ -77,10 +98,11 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
 
 - [x] A wrapped call is metered and attributed with one line of integration
       (wrap once; tag per call via `providerOptions.abacus`).
-- [ ] Crossing a soft limit downshifts (or caches); crossing a hard limit refuses
-      cleanly. *(M3 supplies the budget level; M4 turns it into a decision —
-      `decide` returns the downshift/cache/refuse action. Executing that decision
-      in the middleware call path is the next increment.)*
+- [x] Crossing a soft limit downshifts (or caches); crossing a hard limit refuses
+      cleanly — `enforcementMiddleware` reads the budget level, runs `decide`, and
+      executes the action in the call path (downshift to a cheaper model, serve a
+      cache hit, or throw `BudgetExceededError`), charging the executed cost back
+      to the ledger. Both buffered and streaming paths.
 - [x] Budget accounting is correct under concurrent calls (tested) — `addSpend`
       is atomic in both stores; concurrent-charge tests assert exact totals.
 - [ ] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
@@ -137,6 +159,29 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   resolve a target for the requested model falls through to a configurable `else`
   (default `allow`), so a non-downshiftable call proceeds rather than failing
   closed; set `else: { kind: 'refuse' }` to fail closed instead.
+- **Enforcement executes; metering observes** (call-path wiring): the pure
+  `decide` from M4 is run by `enforcementMiddleware`, a second AI SDK middleware
+  composed alongside `meteringMiddleware`. Keeping them separate preserves the
+  spec's observation/enforcement split — metering writes to a sink, enforcement
+  reads/charges the budget ledger and acts on the decision. The check-then-charge
+  is deliberately *not* atomic: a call's cost is unknown until it returns, so the
+  decision reads spend before the call and the charge updates it after, meaning a
+  crossed limit governs the *next* call (the realistic model; the store's
+  `addSpend` is still atomic, so totals never race).
+- **Downshift needs a model resolver** (call-path wiring): `wrapLanguageModel`
+  binds one model, but a downshift must *call a different one*. AI SDK middleware
+  can't reroute by id alone, so enforcement takes a `resolveModel(id) => model`
+  seam (a gateway call or `createProviderRegistry` lookup) and invokes the
+  resolved model's `doGenerate`/`doStream` directly. If the target can't be
+  resolved the call falls back to the requested model — failing open, consistent
+  with the engine's own downshift fall-through. Cache is served through an
+  optional `GovernanceCache` hook because abacus does not own a cache; a miss
+  falls through to the live call.
+- **Enforcement never breaks the call** (call-path wiring): like metering, a
+  ledger read or write failure routes to `onError` and the call proceeds (fails
+  open) — a store outage degrades governance, it does not take down every LLM
+  call. Operators who need fail-closed semantics wrap the ledger. Cost is charged
+  from the *executed* model's id, so a downshift accrues the cheaper rate.
 - **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
   against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
   `ioredis` client drops in and abacus keeps its dependency surface to `ai` +

@@ -15,9 +15,10 @@ import type {
 import { generateText, streamText, wrapLanguageModel } from 'ai';
 import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test';
 import {
+  BudgetExceededError,
   BudgetLedger,
-  decide,
   defaultPrices,
+  enforcementMiddleware,
   InMemoryBudgetStore,
   InMemoryMeterSink,
   meteringMiddleware,
@@ -97,31 +98,69 @@ console.log('Token totals:', sink.totals());
 console.log('Spend (USD):', sink.totalCost());
 console.log('Spend by tenant:', sink.rollup('tenant'));
 
-// --- Budgets (M3): cap spend per tenant over a window. ---
-// A monthly budget for the acme tenant with a soft and hard limit (in USD).
-// Here we replay the acme call's metered cost into the ledger; in production the
-// metering middleware charges the ledger as calls happen and the policy engine
-// (M4) acts on the level it reports.
-const budgets = new BudgetLedger({
+// --- Enforcement (M3 + M4 in the call path): govern spend per tenant. ---
+// Three tenants share one budget shape; we pre-load each to a different level so
+// one call apiece shows every policy branch. In production the enforcement
+// middleware charges the ledger as calls happen and acts on the level it reports.
+const ledger = new BudgetLedger({
   store: new InMemoryBudgetStore(),
-  budgets: [
-    { dimension: 'tenant', key: 'acme', window: 'monthly', soft: 0.001, hard: 0.002 },
-  ],
+  budgets: ['acme', 'globex', 'initech'].map((key) => ({
+    dimension: 'tenant' as const,
+    key,
+    window: 'monthly' as const,
+    soft: 1,
+    hard: 2,
+  })),
 });
-const acmeRecord = sink.records.find((r) => r.attribution?.tenant === 'acme');
-const acmeStates = await budgets.charge(
-  acmeRecord?.attribution,
-  acmeRecord?.cost ?? 0,
-);
-console.log('Budget — acme (monthly):', acmeStates[0]);
+await ledger.charge({ tenant: 'globex' }, 1); // -> at soft limit
+await ledger.charge({ tenant: 'initech' }, 2); // -> at hard limit
 
-// --- Policy engine (M4): turn budget state into a decision. ---
-// Pure `(budget state, request) → action`. On soft, downshift Opus → Haiku via
-// the Gateway; on hard, refuse. The acme call above pushed spend past the soft
-// limit, so the engine decides to downshift the next acme call.
+// The policy: on soft, downshift Opus -> Haiku via the Gateway; on hard, refuse.
 const policy: Policy = {
   soft: { kind: 'downshift', to: { 'anthropic/claude-opus-4': 'anthropic/claude-haiku-4' } },
   hard: { kind: 'refuse' },
 };
-const decision = decide(policy, acmeStates, { modelId: 'anthropic/claude-opus-4' });
-console.log('Policy decision for next acme call:', decision);
+
+// A cheaper model the downshift can resolve to, and a resolver that produces it.
+const haiku = new MockLanguageModelV3({
+  provider: 'gateway',
+  modelId: 'anthropic/claude-haiku-4',
+  doGenerate: async (): Promise<LanguageModelV3GenerateResult> => ({
+    content: [{ type: 'text', text: 'Paris.' }],
+    finishReason: { unified: 'stop', raw: 'stop' },
+    usage,
+    warnings: [],
+  }),
+});
+
+// One wrapped model, now metered AND governed — still a one-line integration.
+// enforcement runs first (outermost) so it decides before metering observes.
+const governed = wrapLanguageModel({
+  model,
+  middleware: [
+    enforcementMiddleware({
+      ledger,
+      policy,
+      prices: defaultPrices,
+      resolveModel: (id) => (id === 'anthropic/claude-haiku-4' ? haiku : undefined),
+    }),
+    meteringMiddleware({ sink: new InMemoryMeterSink(), prices: defaultPrices }),
+  ],
+});
+
+for (const tenant of ['acme', 'globex', 'initech']) {
+  try {
+    const { text: answer } = await generateText({
+      model: governed,
+      prompt: 'What is the capital of France?',
+      providerOptions: { abacus: { tenant } },
+    });
+    console.log(`Enforced call for ${tenant}: allowed/downshifted ->`, answer);
+  } catch (error) {
+    if (error instanceof BudgetExceededError) {
+      console.log(`Enforced call for ${tenant}: refused ->`, error.message);
+    } else {
+      throw error;
+    }
+  }
+}
