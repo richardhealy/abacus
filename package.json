@@ -1,0 +1,56 @@
+{
+  "name": "abacus",
+  "version": "0.0.0",
+  "description": "A cost-governance layer for LLM calls: meters and attributes every token, enforces per-tenant budgets, and degrades gracefully instead of silently overspending.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "example": "tsx examples/wrap-call.ts",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "cost",
+    "budget",
+    "governance",
+    "finops",
+    "ai-sdk",
+    "middleware"
+  ],
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.12",
+    "ai": "6.0.213"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.17.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^4.1.9"
+  }
+}
