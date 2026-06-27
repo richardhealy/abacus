@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Documentation phase, deliverable (b): the **API reference**, in two parts.
+  (1) **TypeDoc** for the library surface — a `typedoc.json` (entry point
+  `src/index.ts`, internals excluded, link validation on, warnings treated as
+  errors) and an `npm run docs:api` script that renders a documented page per
+  module from the deliverable-(a) doc comments. It generates with zero warnings;
+  the one external `@ai-sdk/provider` type link is resolved via
+  `externalSymbolLinkMappings`. The generated `docs/api/` output is gitignored
+  (reproducible from the comments at any commit) and excluded from ESLint, so the
+  source of truth stays the doc comments. (2) **`docs/api.md`** for the HTTP
+  surface — the `/usage` JSON endpoint (`usageHandler`) and the HTML dashboard
+  (`dashboardHandler`): how to mount them, the `UsageRecordSource` read seam,
+  authentication (none built in — mount behind your own access control), the
+  shared `dimension` / `since` / `until` query parameters, the
+  `UsageReport` / `RollupEntry` / `TokenUsage` response shapes with a worked JSON
+  example, and the `400` / `405` / `500` error cases for both handlers. Tooling
+  only — no behaviour change; the full `check` (lint + typecheck + 184 tests +
+  build) stays green (TypeDoc pulled TypeScript 5.7 → 5.9, within the declared
+  `^5.7` range).
 - Documentation phase, deliverable (a): TSDoc `@module` headers across the whole
   public surface. Every source module now opens with a `@module` block (the
   barrel `src/index.ts` with `@packageDocumentation`) that states the module's

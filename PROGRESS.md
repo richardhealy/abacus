@@ -182,11 +182,19 @@ without reading every line of source. One deliverable per run, in priority order
       place, and the few `*Options` / `RollupOptions` interfaces that documented
       only their fields gained an interface-level summary. The full `check`
       (lint + typecheck + 184 tests + build) stays green.
-- [ ] **b. API reference.** Generate TypeDoc from the doc comments for the
-      library surface, and write `docs/api.md` for the HTTP surface — the
-      `/usage` (JSON) and dashboard (HTML) handlers: methods, query params
-      (`dimension` / `since` / `until`), response shapes, and the
-      `400` / `405` / `500` error cases.
+- [x] **b. API reference.** Two-part: (1) **TypeDoc** for the library surface —
+      `typedoc.json` (entry point `src/index.ts`, `excludeInternal`,
+      `treatWarningsAsErrors`, link validation on) plus an `npm run docs:api`
+      script; it renders a described page per module from the deliverable-(a) doc
+      comments and generates with **zero warnings** (one external `@ai-sdk/provider`
+      link mapped via `externalSymbolLinkMappings`). The generated `docs/api/` is
+      gitignored (reproducible from the comments) and excluded from ESLint.
+      (2) **`docs/api.md`** for the HTTP surface — the `/usage` (JSON) and
+      dashboard (HTML) handlers: mounting, the `UsageRecordSource` seam, auth
+      (none built in — mount behind your own), the shared `dimension` / `since` /
+      `until` query params, the `UsageReport` / `RollupEntry` / `TokenUsage`
+      response shapes, and the `400` / `405` / `500` error cases. The full `check`
+      stays green with the TypeDoc-driven TypeScript bump (5.7 → 5.9, within range).
 - [ ] **c. Architecture dossier** (`docs/architecture.md`) — component map
       (middleware / budget / policy / pricing / attribution / usage /
       observability), data and control flow through a governed call, the

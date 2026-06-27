@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+# Generated TypeDoc API reference (regenerate with `npm run docs:api`)
+docs/api/
 *.log
 .DS_Store
 .env

@@ -38,6 +38,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "docs:api": "typedoc",
     "example": "tsx examples/wrap-call.ts",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "prepublishOnly": "npm run check"
@@ -61,6 +62,7 @@
     "@types/node": "^22.10.0",
     "eslint": "^9.17.0",
     "tsx": "^4.19.2",
+    "typedoc": "^0.28.19",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
     "vitest": "^4.1.9"
