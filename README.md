@@ -10,10 +10,10 @@ as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
 > **Status:** early. Metering (**M0–M1**) and pricing (**M2**) are in place —
-> one-line wrapping, normalized token metering, a pluggable sink, an auditable
-> price table, and deterministic per-call cost. Budgets, the policy engine, and
-> the `/usage` endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and
-> [`spec.md`](spec.md).
+> one-line wrapping, normalized token metering, attribution by tenant / feature /
+> user with spend rollups, a pluggable sink, an auditable price table, and
+> deterministic per-call cost. Budgets, the policy engine, and the `/usage`
+> endpoint are next. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -63,12 +63,13 @@ Each metered call produces a `MeterRecord`:
 
 ```ts
 interface MeterRecord {
-  modelId: string;     // e.g. "anthropic/claude-opus-4"
-  provider: string;    // e.g. "gateway"
-  timestamp: number;   // epoch ms when the call completed
-  latencyMs: number;   // wall-clock duration of the model call
-  usage: TokenUsage;   // normalized, flat token counts (never undefined)
-  cost?: number;       // computed spend in USD, when a price table is configured
+  modelId: string;            // e.g. "anthropic/claude-opus-4"
+  provider: string;           // e.g. "gateway"
+  timestamp: number;          // epoch ms when the call completed
+  latencyMs: number;          // wall-clock duration of the model call
+  usage: TokenUsage;          // normalized, flat token counts (never undefined)
+  attribution?: Attribution;  // who the call is for (tenant / feature / user)
+  cost?: number;              // computed spend in USD, when a price table is configured
 }
 ```
 
@@ -81,6 +82,36 @@ development; durable sinks (Redis, OpenTelemetry via
 [`watchtower`](spec.md)) plug into the same interface. **Metering never breaks the
 wrapped call:** if a sink throws, the failure is routed to an `onError` hook and
 the model call still returns.
+
+## Attribution
+
+Spend is only useful if you know whose it is. Tag a call with the tenant,
+feature, and user it serves by passing `providerOptions.abacus` — the same
+wrapped model serves everyone, and attribution rides along on the call it
+describes:
+
+```ts
+await generateText({
+  model,
+  prompt: '...',
+  providerOptions: { abacus: { tenant: 'acme', feature: 'chat', user: 'u_1' } },
+});
+```
+
+The metered record carries that `attribution`, and the sink rolls spend up by any
+dimension — sorted by cost, so the priciest tenant or feature leads:
+
+```ts
+sink.rollup('tenant');
+// → [ { key: 'acme', count: 12, usage: {…}, cost: 1.84 },
+//     { key: 'globex', count: 3, usage: {…}, cost: 0.21 } ]
+```
+
+A middleware can also carry a **static default** (e.g. `attribution: { feature:
+'chat' }`) when one wrapped model only ever serves one feature; per-call values
+merge on top, winning field by field. Calls with no value on a dimension roll up
+under `(unattributed)` rather than being dropped. `rollupByDimension` is exported
+standalone for building the same view over records from any sink.
 
 ## Pricing & cost
 

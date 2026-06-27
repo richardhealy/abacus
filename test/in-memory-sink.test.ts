@@ -64,4 +64,20 @@ describe('InMemoryMeterSink', () => {
     expect(sink.count).toBe(0);
     expect(sink.totals().totalTokens).toBe(0);
   });
+
+  it('rolls up captured records by an attribution dimension', () => {
+    const sink = new InMemoryMeterSink();
+    sink.record(record({ attribution: { tenant: 'acme' }, cost: 0.4 }));
+    sink.record(record({ attribution: { tenant: 'acme' }, cost: 0.1 }));
+    sink.record(record({ attribution: { tenant: 'globex' }, cost: 1 }));
+    sink.record(record({ cost: 0.2 }));
+
+    const byTenant = sink.rollup('tenant');
+
+    expect(byTenant.map((e) => ({ key: e.key, count: e.count, cost: e.cost }))).toEqual([
+      { key: 'globex', count: 1, cost: 1 },
+      { key: 'acme', count: 2, cost: 0.5 },
+      { key: '(unattributed)', count: 1, cost: 0.2 },
+    ]);
+  });
 });

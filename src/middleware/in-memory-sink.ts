@@ -1,3 +1,9 @@
+import {
+  rollupByDimension,
+  type RollupEntry,
+  type RollupOptions,
+} from '../attribution/rollup.js';
+import type { AttributionDimension } from '../attribution/types.js';
 import type { MeterRecord, MeterSink, TokenUsage } from './types.js';
 
 function emptyUsage(): TokenUsage {
@@ -53,6 +59,19 @@ export class InMemoryMeterSink implements MeterSink {
     const NANO = 1e9;
     const sum = this.buffer.reduce((acc, { cost }) => acc + (cost ?? 0), 0);
     return Math.round(sum * NANO) / NANO;
+  }
+
+  /**
+   * Spend and usage grouped by an attribution dimension (tenant / feature /
+   * user), sorted by cost descending. This is the spend-by-dimension view the
+   * spec asks `/usage` to expose; here it lets a test assert that a tagged call
+   * shows up under the right tenant or feature.
+   */
+  rollup(
+    dimension: AttributionDimension,
+    options?: RollupOptions,
+  ): RollupEntry[] {
+    return rollupByDimension(this.buffer, dimension, options);
   }
 
   /** Discard all captured records. */

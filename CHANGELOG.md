@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-27
+- Attribution (milestone M1): tag metered calls by `tenant` / `feature` / `user`
+  (plus free-form `tags`). The middleware reads per-call attribution from the
+  `abacus` namespace of an AI SDK call's `providerOptions` and merges it over an
+  optional static `attribution` default, so one wrapped model serves every tenant
+  and the one-line integration is preserved. Each `MeterRecord` now carries an
+  optional `attribution`.
+- `rollupByDimension` and `InMemoryMeterSink.rollup(dimension)` group spend and
+  usage by an attribution dimension, sorted by cost (descending), with records
+  missing the dimension collected under `(unattributed)` — the basis for the
+  forthcoming `/usage` view. Exposed `Attribution`, `AttributionDimension`,
+  `RollupEntry`, `attributionFromProviderOptions`, and `mergeAttribution`.
+- Offline example now tags two calls to different tenants and prints
+  `sink.rollup('tenant')`; 20 new unit + end-to-end tests.
+
+### Added — 2026-06-27
 - Pricing (milestone M2): auditable `PriceTable` config in USD per 1M tokens
   (`defaultPrices`), plus deterministic cost math — `priceFor` (exact match with
   a bare-model-id fallback), `costOf` (per-category `CostBreakdown`), and

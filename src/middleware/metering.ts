@@ -1,4 +1,9 @@
 import type { LanguageModelV3Middleware } from '@ai-sdk/provider';
+import {
+  attributionFromProviderOptions,
+  mergeAttribution,
+} from '../attribution/provider-options.js';
+import type { Attribution } from '../attribution/types.js';
 import { priceFor, costOf } from '../pricing/cost.js';
 import type { PriceTable } from '../pricing/types.js';
 import type { MeterRecord, MeterSink } from './types.js';
@@ -13,6 +18,14 @@ export interface MeteringOptions {
    * without cost — metering does not require pricing to function.
    */
   prices?: PriceTable;
+  /**
+   * Static attribution applied to every metered call — useful when one wrapped
+   * model serves a single feature, e.g. `{ feature: 'chat' }`. Per-call
+   * attribution passed via `providerOptions.abacus` is merged on top of this,
+   * with the per-call values winning field by field. Omit it and calls are
+   * attributed solely from their `providerOptions`.
+   */
+  attribution?: Attribution;
   /**
    * Clock used for timing and timestamps. Defaults to `Date.now`. Injectable so
    * tests can assert exact latencies deterministically.
@@ -74,17 +87,22 @@ export function meteringMiddleware(
   const onError = options.onError ?? defaultOnError;
   const onUnpricedModel = options.onUnpricedModel ?? defaultOnUnpricedModel;
   const prices = options.prices;
+  const defaultAttribution = options.attribution;
   const warnedModels = new Set<string>();
 
   return {
     specificationVersion: 'v3',
 
-    wrapGenerate: async ({ doGenerate, model }) => {
+    wrapGenerate: async ({ doGenerate, model, params }) => {
       const startedAt = now();
       const result = await doGenerate();
       const completedAt = now();
 
       const usage = normalizeUsage(result.usage);
+      const attribution = mergeAttribution(
+        defaultAttribution,
+        attributionFromProviderOptions(params.providerOptions),
+      );
       const record: MeterRecord = {
         modelId: model.modelId,
         provider: model.provider,
@@ -92,6 +110,9 @@ export function meteringMiddleware(
         latencyMs: completedAt - startedAt,
         usage,
       };
+      if (attribution !== undefined) {
+        record.attribution = attribution;
+      }
 
       if (prices !== undefined) {
         const price = priceFor(model.modelId, prices);

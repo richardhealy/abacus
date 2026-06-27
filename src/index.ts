@@ -18,3 +18,20 @@ export type {
   PriceTable,
   CostBreakdown,
 } from './pricing/types.js';
+
+// Attribution (M1): tag spend by tenant / feature / user and roll it up.
+export {
+  ATTRIBUTION_PROVIDER_KEY,
+  attributionFromProviderOptions,
+  mergeAttribution,
+} from './attribution/provider-options.js';
+export {
+  rollupByDimension,
+  UNATTRIBUTED_KEY,
+} from './attribution/rollup.js';
+export { ATTRIBUTION_DIMENSIONS } from './attribution/types.js';
+export type {
+  Attribution,
+  AttributionDimension,
+} from './attribution/types.js';
+export type { RollupEntry, RollupOptions } from './attribution/rollup.js';

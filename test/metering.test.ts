@@ -133,3 +133,95 @@ describe('meteringMiddleware', () => {
     expect(recorded).toHaveLength(1);
   });
 });
+
+describe('meteringMiddleware attribution', () => {
+  it('tags a record from per-call providerOptions', async () => {
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel(),
+      middleware: meteringMiddleware({ sink }),
+    });
+
+    await generateText({
+      model,
+      prompt: 'hi',
+      providerOptions: { abacus: { tenant: 'acme', feature: 'chat', user: 'u_1' } },
+    });
+
+    expect(sink.records[0]?.attribution).toEqual({
+      tenant: 'acme',
+      feature: 'chat',
+      user: 'u_1',
+    });
+  });
+
+  it('leaves attribution undefined for an untagged call', async () => {
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel(),
+      middleware: meteringMiddleware({ sink }),
+    });
+
+    await generateText({ model, prompt: 'hi' });
+
+    expect(sink.records[0]?.attribution).toBeUndefined();
+  });
+
+  it('merges a static default with per-call attribution, per-call winning', async () => {
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel(),
+      middleware: meteringMiddleware({
+        sink,
+        attribution: { feature: 'chat', tenant: 'default' },
+      }),
+    });
+
+    await generateText({
+      model,
+      prompt: 'hi',
+      providerOptions: { abacus: { tenant: 'acme', user: 'u_1' } },
+    });
+
+    expect(sink.records[0]?.attribution).toEqual({
+      tenant: 'acme',
+      feature: 'chat',
+      user: 'u_1',
+    });
+  });
+
+  it('applies the static default when a call carries no attribution', async () => {
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel(),
+      middleware: meteringMiddleware({ sink, attribution: { feature: 'chat' } }),
+    });
+
+    await generateText({ model, prompt: 'hi' });
+
+    expect(sink.records[0]?.attribution).toEqual({ feature: 'chat' });
+  });
+
+  it('rolls metered spend up by tenant end to end', async () => {
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel(),
+      middleware: meteringMiddleware({ sink, prices: { 'mock/opus': { input: 1_000_000, output: 1_000_000 } } }),
+    });
+
+    await generateText({
+      model,
+      prompt: 'a',
+      providerOptions: { abacus: { tenant: 'acme' } },
+    });
+    await generateText({
+      model,
+      prompt: 'b',
+      providerOptions: { abacus: { tenant: 'globex' } },
+    });
+
+    const byTenant = sink.rollup('tenant');
+    expect(byTenant.map((e) => e.key)).toEqual(['acme', 'globex']);
+    expect(byTenant.every((e) => e.count === 1)).toBe(true);
+  });
+});

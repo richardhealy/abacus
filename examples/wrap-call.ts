@@ -42,12 +42,24 @@ const model = wrapLanguageModel({
   middleware: meteringMiddleware({ sink, prices: defaultPrices }),
 });
 
+// Attribution rides along on the call via `providerOptions.abacus`. The same
+// wrapped model serves every tenant; each call says who it is for, and abacus
+// tags the metered record so spend can be rolled up per tenant / feature / user.
 const { text } = await generateText({
   model,
   prompt: 'What is the capital of France?',
+  providerOptions: { abacus: { tenant: 'acme', feature: 'chat', user: 'u_1' } },
+});
+
+// A second call, billed to a different tenant.
+await generateText({
+  model,
+  prompt: 'What is the capital of France?',
+  providerOptions: { abacus: { tenant: 'globex', feature: 'chat', user: 'u_2' } },
 });
 
 console.log('Model said:', text);
 console.log('Metered records:', sink.records);
 console.log('Token totals:', sink.totals());
 console.log('Spend (USD):', sink.totalCost());
+console.log('Spend by tenant:', sink.rollup('tenant'));

@@ -1,3 +1,5 @@
+import type { Attribution } from '../attribution/types.js';
+
 /**
  * Normalized, flattened token usage for a single model call.
  *
@@ -36,6 +38,13 @@ export interface MeterRecord {
   latencyMs: number;
   /** Normalized token usage for the call. */
   usage: TokenUsage;
+  /**
+   * Who/what the call is attributed to (tenant / feature / user). Present when
+   * the call carried attribution — via per-call `providerOptions.abacus` or the
+   * middleware's static default — and `undefined` otherwise, so an
+   * unattributed call is distinguishable from one tagged with empty values.
+   */
+  attribution?: Attribution;
   /**
    * Computed cost of the call in US dollars, present only when the metering
    * middleware was given a price table and the model was found in it. Left
