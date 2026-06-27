@@ -167,6 +167,39 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         and a `prepublishOnly` gate that runs the full `check` (lint + typecheck +
         test + build) so a broken build can never publish.
 
+## Documentation
+
+The build is complete (**M0–M6**, 184 tests green), so the remaining work is the
+documentation phase: making the project understandable, runnable, and integrable
+without reading every line of source. One deliverable per run, in priority order.
+
+- [ ] **a. Doc comments (TSDoc).** `@module` / doc comments across the public
+      surface — every exported module, function, and type in `src/` (middleware,
+      budget, policy, pricing, attribution, usage, observability). Explain intent
+      and non-obvious behaviour, not the obvious. Re-run the build and tests
+      after, since TSDoc `@example` blocks can break the build.
+- [ ] **b. API reference.** Generate TypeDoc from the doc comments for the
+      library surface, and write `docs/api.md` for the HTTP surface — the
+      `/usage` (JSON) and dashboard (HTML) handlers: methods, query params
+      (`dimension` / `since` / `until`), response shapes, and the
+      `400` / `405` / `500` error cases.
+- [ ] **c. Architecture dossier** (`docs/architecture.md`) — component map
+      (middleware / budget / policy / pricing / attribution / usage /
+      observability), data and control flow through a governed call, the
+      observation-vs-enforcement split, key design decisions and trade-offs, the
+      structural seams (`MeterSink` / `BudgetStore` / `RedisLike` / OTel), external
+      dependencies, and where each part of the spec lives in the code. Mermaid
+      diagrams welcome.
+- [ ] **d. Integration guide** (`docs/integration.md`) — standing abacus up in a
+      real app: wiring `meteringMiddleware` + `enforcementMiddleware`, choosing a
+      sink (in-memory / OTel) and store (in-memory / Redis), defining budgets and
+      a policy, and mounting `/usage` + the dashboard — with concrete, runnable
+      examples per surface.
+- [ ] **e. How-to guides + docs index + README pass** — task-oriented guides
+      (e.g. cap a tenant's monthly spend, downshift Opus → Haiku on a soft limit,
+      ship spend to your tracing tool), a `docs/` index, and a final `README.md`
+      pass that orients a newcomer and links out to the docs above.
+
 ## Definition of done (from spec)
 
 - [x] A wrapped call is metered and attributed with one line of integration
