@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Observability (milestone M5, first half): `otelMeterSink` — a `MeterSink` that
+  emits each metered call as OpenTelemetry **`gen_ai.*`** telemetry through
+  watchtower. Per call it creates one back-dated `gen_ai.*` span (started at
+  `timestamp - latencyMs`, ended at `timestamp`, so it spans the real call window)
+  carrying the GenAI-semconv attributes plus abacus's `abacus.cost.usd` and the
+  attribution (`abacus.tenant`/`feature`/`user`), and records the GenAI metrics:
+  the `gen_ai.client.token.usage` and `gen_ai.client.operation.duration`
+  histograms, and an `abacus.cost.usd` counter attributed by tenant/feature/user
+  (the spend-by-dimension view in the metrics backend). This delivers the
+  "tracing tool" half of the spec's spend-visibility goal; the `/usage` endpoint
+  is next.
+- No runtime OpenTelemetry dependency: `otelMeterSink` targets a structural
+  `OTelTracerLike`/`OTelMeterLike` seam (mirroring `RedisLike`) that a real OTel
+  `Tracer`/`Meter` satisfies as-is; provide a tracer, a meter, or both. The pure
+  `gen_ai.*` attribute mappers (`genAiSpanAttributes`, `genAiMetricAttributes`,
+  `attributionAttributes`, `spanName`) and the metric-name constants are exported.
+  13 new unit tests cover the attribute mapping, span back-dating, the three
+  metrics and their units, the unpriced-cost skip, tracer-only/meter-only/both,
+  and an end-to-end span through `meteringMiddleware`.
 - Enforcement in the call path: `enforcementMiddleware` *executes* the policy
   decision from M4 — the companion to `meteringMiddleware`. Before each call it
   reads the budgets the call falls under (`BudgetLedger.check`), runs `decide`,

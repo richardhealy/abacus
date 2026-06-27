@@ -91,7 +91,29 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   - [x] 13 new unit tests — every branch on both paths, cost charged per branch,
         downshift fall-back, cache hit/miss, fail-open on read, surviving a failed
         charge, and unpriced-model handling.
-- **☐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
+- **◐ M5 — Observability.** OpenTelemetry `gen_ai.*` spans via watchtower; `/usage` rollups.
+  - [x] `otelMeterSink` — a `MeterSink` that emits each metered call as
+        OpenTelemetry GenAI telemetry through watchtower: one back-dated
+        `gen_ai.*` span per call (started at `timestamp - latencyMs`, ended at
+        `timestamp`, so it spans the real call window without holding a span open)
+        and the GenAI metrics (`gen_ai.client.token.usage` /
+        `gen_ai.client.operation.duration` histograms + an `abacus.cost.usd`
+        counter attributed by tenant/feature/user — the spend-by-dimension view).
+  - [x] Pure `gen_ai.*` attribute mapping (`genAiSpanAttributes` /
+        `genAiMetricAttributes` / `attributionAttributes` / `spanName`):
+        GenAI-semconv keys (`gen_ai.system`, `gen_ai.request.model`,
+        `gen_ai.usage.*`) plus abacus-namespaced cost / token-breakdown /
+        attribution attributes. Cost omitted when a call is unpriced, so an
+        unpriced call is distinguishable from a free one.
+  - [x] No runtime OTel dependency: written against a structural
+        `OTelTracerLike` / `OTelMeterLike` seam (mirroring `RedisLike`) that a
+        real OTel `Tracer` / `Meter` satisfies as-is; tracer and/or meter, at
+        least one required. Like every sink, a throwing tracer/meter routes to
+        metering's `onError` and never breaks the wrapped call.
+  - [x] 13 new unit tests — pure attribute mapping, span back-dating/kind/attrs,
+        the three metrics + units, unpriced-cost skip, tracer-only / meter-only /
+        both, custom operation name, and end-to-end through `meteringMiddleware`.
+  - [ ] `/usage` endpoint: spend-by-dimension rollups over a queryable sink.
 - **☐ M6 — Dashboard + ship.** Spend-by-dimension view, README screenshot, release.
 
 ## Definition of done (from spec)
@@ -106,6 +128,9 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
 - [x] Budget accounting is correct under concurrent calls (tested) — `addSpend`
       is atomic in both stores; concurrent-charge tests assert exact totals.
 - [ ] Spend by tenant/feature is visible via `/usage` and in the tracing tool.
+      Tracing-tool half done: `otelMeterSink` emits `gen_ai.*` spans (attributed
+      with `abacus.tenant`/`feature`/`user`) and an `abacus.cost.usd` counter
+      keyed by those dimensions. `/usage` endpoint still pending.
 
 ## Notes / decisions
 
@@ -182,6 +207,23 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
   open) — a store outage degrades governance, it does not take down every LLM
   call. Operators who need fail-closed semantics wrap the ledger. Cost is charged
   from the *executed* model's id, so a downshift accrues the cheaper rate.
+- **Observe through watchtower, don't reinvent tracing** (M5): per the spec,
+  abacus owns *enforcement* and emits *observation* as OpenTelemetry. `otelMeterSink`
+  is a `MeterSink`, so it composes with the existing metering path — no new
+  call-path wiring. Each record becomes one `gen_ai.*` span and the GenAI metrics,
+  using the standard semconv keys so spend appears alongside any other
+  instrumented LLM call. The span is **back-dated** (started at
+  `timestamp - latencyMs`, ended at `timestamp`) because the call has already
+  returned by the time the sink runs — this reproduces the real call window
+  without holding a span open across the call (which a `MeterSink` can't do; it
+  only sees a completed record). The cost lives in an `abacus.cost.usd` namespace
+  (GenAI semconv has no cost key) and the cost *counter* carries the attribution
+  dimensions so spend aggregates by tenant/feature/user in the metrics backend —
+  the "tracing tool" half of the spec's spend-visibility goal. As with `RedisLike`,
+  the sink targets a structural OTel seam (`OTelTracerLike`/`OTelMeterLike`) so a
+  real `@opentelemetry/api` `Tracer`/`Meter` drops in with no runtime dependency.
+  The attribute mapping is pure (`genAiSpanAttributes`/`genAiMetricAttributes`)
+  and unit-tested in isolation, matching the project's decide-is-pure ethos.
 - **Redis without a runtime dependency** (M3): `RedisBudgetStore` is written
   against a structural `RedisLike` (just `incrbyfloat` / `expire` / `get`), so an
   `ioredis` client drops in and abacus keeps its dependency surface to `ai` +

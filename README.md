@@ -18,9 +18,10 @@ without the caller knowing.
 > over daily/monthly windows (in-memory or Redis-backed), a pure policy engine
 > that turns a budget level into a downshift / cache / refuse decision, and an
 > enforcement middleware that *executes* that decision — downshifting,
-> serving cache, or refusing — and charges spend back to the budget. The
-> `/usage` endpoint and a dashboard are next. See [`PROGRESS.md`](PROGRESS.md)
-> and [`spec.md`](spec.md).
+> serving cache, or refusing — and charges spend back to the budget, plus an
+> **OpenTelemetry sink** that emits metered spend as `gen_ai.*` spans and
+> metrics through [`watchtower`](spec.md). The `/usage` endpoint and a dashboard
+> are next. See [`PROGRESS.md`](PROGRESS.md) and [`spec.md`](spec.md).
 
 ## Install
 
@@ -95,10 +96,11 @@ flat counts that default to `0` — so downstream cost math and rollups never ha
 to guard for missing fields.
 
 Records go to a `MeterSink`. `InMemoryMeterSink` is provided for tests and local
-development; durable sinks (Redis, OpenTelemetry via
-[`watchtower`](spec.md)) plug into the same interface. **Metering never breaks the
-wrapped call:** if a sink throws, the failure is routed to an `onError` hook and
-the model call still returns.
+development; `otelMeterSink` (see [Observability](#observability)) emits each
+record as OpenTelemetry `gen_ai.*` telemetry through
+[`watchtower`](spec.md), and any durable sink plugs into the same interface.
+**Metering never breaks the wrapped call:** if a sink throws, the failure is
+routed to an `onError` hook and the model call still returns.
 
 ## Attribution
 
@@ -324,6 +326,53 @@ charge updates it *after* — a call's own cost isn't known until it returns, so
 crossing a limit governs the *next* call. Both the buffered and streaming paths are
 enforced. See it run across allow / downshift / refuse in
 [`examples/wrap-call.ts`](examples/wrap-call.ts).
+
+## Observability
+
+abacus **enforces** spend; it does not build its own tracing. It **observes**
+through [`watchtower`](spec.md) by emitting each metered call as standard
+OpenTelemetry **`gen_ai.*`** telemetry — so spend shows up in your tracing tool
+in the same shape as every other instrumented LLM call. `otelMeterSink` is a
+`MeterSink`: drop it into `meteringMiddleware` and every call becomes a span
+and/or a set of metrics.
+
+```ts
+import { trace, metrics } from '@opentelemetry/api';
+import { wrapLanguageModel } from 'ai';
+import { meteringMiddleware, otelMeterSink, defaultPrices } from 'abacus';
+
+const model = wrapLanguageModel({
+  model: gateway('anthropic/claude-opus-4'),
+  middleware: meteringMiddleware({
+    sink: otelMeterSink({
+      tracer: trace.getTracer('abacus'),
+      meter: metrics.getMeter('abacus'),
+    }),
+    prices: defaultPrices, // so spans/metrics carry cost
+  }),
+});
+```
+
+Each call emits:
+
+- **A span** named `"{operation} {model}"` (e.g. `chat anthropic/claude-opus-4`),
+  back-dated to span the real call window, carrying the GenAI attributes
+  (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, …) plus
+  abacus's own `abacus.cost.usd` and the attribution (`abacus.tenant`,
+  `abacus.feature`, `abacus.user`) — so a call is traceable back to whose spend
+  it is.
+- **Metrics:** the `gen_ai.client.token.usage` and
+  `gen_ai.client.operation.duration` histograms, and an `abacus.cost.usd` counter
+  **attributed by tenant/feature/user** — the spend-by-dimension view, queryable
+  in your metrics backend.
+
+Provide a `tracer`, a `meter`, or both. abacus has **no runtime OpenTelemetry
+dependency**: the sink is written against a small structural seam
+(`OTelTracerLike` / `OTelMeterLike`) that a real OTel `Tracer` and `Meter`
+satisfy as-is. The pure attribute mappers (`genAiSpanAttributes`,
+`genAiMetricAttributes`) are exported too, for building the same telemetry over
+records from any sink. Like every sink, a throwing tracer/meter routes to
+metering's `onError` and never breaks the wrapped call.
 
 ## Development
 

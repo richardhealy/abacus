@@ -24,6 +24,35 @@ export type {
   ModelResolver,
 } from './middleware/enforcement.js';
 
+// Observability (M5): emit metered spend as OpenTelemetry gen_ai.* spans and
+// metrics through watchtower — a structural OTel seam, no runtime OTel dependency.
+export { otelMeterSink, SPAN_KIND_CLIENT } from './observability/otel-sink.js';
+export type {
+  OTelMeterSinkOptions,
+  OTelTracerLike,
+  OTelSpanLike,
+  OTelSpanOptions,
+  OTelMeterLike,
+  OTelHistogramLike,
+  OTelCounterLike,
+  OTelInstrumentOptions,
+  OTelTimeInput,
+} from './observability/otel-sink.js';
+export {
+  genAiSpanAttributes,
+  genAiMetricAttributes,
+  attributionAttributes,
+  spanName,
+  DEFAULT_OPERATION_NAME,
+  METRIC_GEN_AI_TOKEN_USAGE,
+  METRIC_GEN_AI_OPERATION_DURATION,
+  METRIC_ABACUS_COST_USD,
+} from './observability/gen-ai.js';
+export type {
+  OTelAttributes,
+  OTelAttributeValue,
+} from './observability/gen-ai.js';
+
 // Pricing (M2): auditable price table + deterministic cost math.
 export { costOf, priceFor, computeCost } from './pricing/cost.js';
 export { defaultPrices } from './pricing/prices.js';
