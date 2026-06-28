@@ -195,13 +195,21 @@ without reading every line of source. One deliverable per run, in priority order
       `until` query params, the `UsageReport` / `RollupEntry` / `TokenUsage`
       response shapes, and the `400` / `405` / `500` error cases. The full `check`
       stays green with the TypeDoc-driven TypeScript bump (5.7 → 5.9, within range).
-- [ ] **c. Architecture dossier** (`docs/architecture.md`) — component map
-      (middleware / budget / policy / pricing / attribution / usage /
-      observability), data and control flow through a governed call, the
-      observation-vs-enforcement split, key design decisions and trade-offs, the
-      structural seams (`MeterSink` / `BudgetStore` / `RedisLike` / OTel), external
-      dependencies, and where each part of the spec lives in the code. Mermaid
-      diagrams welcome.
+- [x] **c. Architecture dossier** (`docs/architecture.md`) — the
+      observation-vs-enforcement split as the organizing idea, a Mermaid component
+      map plus a module→concern→spec-milestone table (middleware / attribution /
+      pricing / budget / policy / observability / usage), the data vocabulary that
+      flows between layers (`TokenUsage` / `MeterRecord` / `Attribution` /
+      `BudgetState` / `PolicyAction`, with a Mermaid data-flow diagram), a Mermaid
+      sequence diagram of control/data flow through a governed call (decision reads
+      spend before / charge after, one timestamp per call, executed-model cost,
+      no-buffer streaming, the downshift resolver), a module-by-module walkthrough,
+      the structural seams (`MeterSink` / `BudgetStore` / `RedisLike` /
+      `OTelTracerLike`+`OTelMeterLike` / `ModelResolver` / `GovernanceCache` /
+      `UsageRecordSource`) as a table, key design decisions and trade-offs, the
+      external-dependency list, a spec→code traceability table, and a note on how
+      the design pays off in the test strategy. Prose-only; the build/test suite
+      (184) and the TypeDoc generation (zero warnings) both stay green.
 - [ ] **d. Integration guide** (`docs/integration.md`) — standing abacus up in a
       real app: wiring `meteringMiddleware` + `enforcementMiddleware`, choosing a
       sink (in-memory / OTel) and store (in-memory / Redis), defining budgets and

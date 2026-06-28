@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Documentation phase, deliverable (c): the **architecture dossier** at
+  [`docs/architecture.md`](docs/architecture.md). It explains how abacus is put
+  together for an engineer who wants to understand, extend, or integrate it
+  without reading every line of source: the observation-vs-enforcement split as
+  the one organizing idea; a Mermaid **component map** plus a
+  module→concern→spec-milestone table (middleware / attribution / pricing /
+  budget / policy / observability / usage); the small, dependency-free data
+  vocabulary that flows between layers (`TokenUsage` / `MeterRecord` /
+  `Attribution` / `BudgetState` / `PolicyAction`); a Mermaid **sequence diagram**
+  of control and data flow through a governed call (decide reads spend *before*
+  and charge updates it *after*, one timestamp per call, the executed model's cost
+  is charged, no-buffer streaming, the downshift resolver and cache hooks); a
+  module-by-module walkthrough of `src/`; the **structural seams** (`MeterSink` /
+  `BudgetStore` / `RedisLike` / `OTelTracerLike`+`OTelMeterLike` / `ModelResolver`
+  / `GovernanceCache` / `UsageRecordSource`) as a table; key design decisions and
+  their trade-offs (two middlewares, decide-is-pure, non-atomic check-then-charge,
+  fail-open, conservative policy defaults, nano-dollar rounding); the external
+  dependency list; a **spec→code traceability table**; and a note on how the
+  design pays off in the test strategy. Prose only — no behaviour change; the full
+  `check` (lint + typecheck + 184 tests + build) and the TypeDoc generation (zero
+  warnings) both stay green.
 - Documentation phase, deliverable (b): the **API reference**, in two parts.
   (1) **TypeDoc** for the library surface — a `typedoc.json` (entry point
   `src/index.ts`, internals excluded, link validation on, warnings treated as
