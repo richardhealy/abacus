@@ -29,6 +29,21 @@ without the caller knowing.
 > [`PROGRESS.md`](PROGRESS.md), [`CHANGELOG.md`](CHANGELOG.md), and
 > [`spec.md`](spec.md).
 
+## Documentation
+
+This README is the tour; the [`docs/`](docs/) directory is the manual. Start with
+whichever matches what you're trying to do:
+
+| Guide | For |
+|---|---|
+| **[Integration guide](docs/integration.md)** | Standing abacus up end to end — the linear, stand-it-all-up walkthrough. |
+| **[How-to guides](docs/how-to.md)** | Fast recipes for one task — cap a tenant's spend, downshift Opus → Haiku, ship spend to your tracing tool, report spend without HTTP. |
+| **[API reference](docs/api.md)** | The `/usage` and dashboard HTTP surface in detail, plus generating the TypeDoc library reference (`npm run docs:api`). |
+| **[Architecture dossier](docs/architecture.md)** | How the pieces fit and why — the observe-vs-enforce split, the seams, the trade-offs. |
+
+The [`docs/` index](docs/README.md) links all four and points you to the right one
+by goal.
+
 ## Install
 
 ```bash

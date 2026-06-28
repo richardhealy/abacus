@@ -225,10 +225,27 @@ without reading every line of source. One deliverable per run, in priority order
       your own access control), a complete production-shaped wiring, and
       operational notes. Prose-only — no behaviour change; the suite (184) stays
       green and TypeDoc still generates with zero warnings.
-- [ ] **e. How-to guides + docs index + README pass** — task-oriented guides
-      (e.g. cap a tenant's monthly spend, downshift Opus → Haiku on a soft limit,
-      ship spend to your tracing tool), a `docs/` index, and a final `README.md`
-      pass that orients a newcomer and links out to the docs above.
+- [x] **e. How-to guides + docs index + README pass** — three pieces.
+      (1) **`docs/how-to.md`** — nine task-oriented recipes, each "how do I X" with
+      the smallest code that does the job: measure spend before enforcing, cap a
+      tenant's monthly spend, downshift Opus → Haiku on a soft limit, stack a
+      feature-daily cap on a tenant-monthly cap (most-severe governs), serve a
+      cached response (`GovernanceCache`), ship spend to a tracing tool
+      (`otelMeterSink`), fail closed instead of fail open (re-throw on the `check`
+      phase in `onError`; `else: refuse` on a downshift), use your own negotiated
+      `PriceTable`, and report spend without HTTP (`buildUsageReport` over a
+      `[since, until)` window). Complements the integration guide's linear
+      walkthrough — recipes, not a tutorial — and cross-links it and the API
+      reference. (2) **`docs/README.md`** — the docs index: a guide table
+      (integration / how-to / API / architecture), the TypeDoc/`spec`/`PROGRESS`/
+      `CHANGELOG` reference pointers, a run section, and a "where to start by goal"
+      list. (3) **README pass** — a new top-level **Documentation** section (a
+      four-row table linking each `docs/` guide plus the index) so a newcomer is
+      pointed at the manual instead of relying on the README alone. Prose only — no
+      behaviour change; the full `check` (lint + typecheck + 184 tests + build)
+      and the TypeDoc generation (zero warnings) both stay green. **This is the
+      final documentation deliverable: the spec is fully implemented (M0–M6), all
+      184 tests pass, and every documentation deliverable (a–e) is now done.**
 
 ## Definition of done (from spec)
 

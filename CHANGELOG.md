@@ -7,6 +7,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Documentation phase, deliverable (e) — the **final** documentation increment:
+  task-oriented **how-to guides**, a **`docs/` index**, and a **README pass**.
+  (1) [`docs/how-to.md`](docs/how-to.md) — nine focused recipes, each answering one
+  "how do I X" with the smallest code that does it: measure spend before enforcing,
+  cap a tenant's monthly spend, downshift Opus → Haiku on a soft limit, stack a
+  feature-daily cap on a tenant-monthly cap (most-severe governs), serve a cached
+  response via `GovernanceCache`, ship spend to a tracing tool with `otelMeterSink`,
+  fail closed instead of fail open (re-throw on the `check` phase in `onError`;
+  `else: { kind: 'refuse' }` on a downshift), use your own negotiated `PriceTable`,
+  and report spend without HTTP via `buildUsageReport` over a `[since, until)`
+  window. They complement the integration guide's linear walkthrough — recipes, not
+  a tutorial — and cross-link it and the API reference. (2)
+  [`docs/README.md`](docs/README.md) — the docs index: a guide table (integration /
+  how-to / API / architecture), the TypeDoc and `spec`/`PROGRESS`/`CHANGELOG`
+  reference pointers, a run section, and a "where to start by goal" list. (3) A new
+  top-level **Documentation** section in the README — a four-row table linking each
+  `docs/` guide and the index — so a newcomer is pointed at the manual rather than
+  relying on the README alone. With this the documentation phase is complete: the
+  spec is fully implemented (M0–M6), all 184 tests pass, and every documentation
+  deliverable (a–e) is done. Prose only — no behaviour change; the full `check`
+  (lint + typecheck + 184 tests + build) and the TypeDoc generation (zero warnings)
+  both stay green.
 - Documentation phase, deliverable (d): the **integration guide** at
   [`docs/integration.md`](docs/integration.md) — how to stand abacus up in a real
   application, end to end. It opens with the integration surfaces (the
