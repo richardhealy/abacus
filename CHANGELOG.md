@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added — 2026-06-28
+- Documentation phase, deliverable (d): the **integration guide** at
+  [`docs/integration.md`](docs/integration.md) — how to stand abacus up in a real
+  application, end to end. It opens with the integration surfaces (the
+  `meteringMiddleware` and `enforcementMiddleware` call-path middlewares, the
+  `otelMeterSink`, and the `usageHandler` / `dashboardHandler` HTTP handlers), then
+  walks eight concrete steps with runnable examples: meter a model (the one-line
+  wrap), attribute spend via `providerOptions.abacus`, choose a sink (in-memory /
+  OpenTelemetry / a durable `MeterSink`), choose a budget store (in-memory /
+  `RedisBudgetStore` over the `RedisLike` seam), define budgets and a policy (the
+  three downshift-target forms, conservative defaults, the `else` fall-through),
+  enforce in the call path (`resolveModel` for downshift, the required `prices`,
+  the optional `GovernanceCache`, the deliberately non-atomic check-then-charge,
+  fail-open), and expose `/usage` and the dashboard. It closes with a
+  framework-mounting matrix (Next.js / Hono / Bun / Deno / Cloudflare Workers /
+  Express), an authentication section (none is built in — mount behind your own
+  access control), a complete production-shaped wiring, and operational notes
+  (incremental adoption, pinning model ids, window choice, fail-open). Prose only —
+  no behaviour change; the full suite (184 tests) stays green and the TypeDoc
+  generation stays warning-free.
 - Documentation phase, deliverable (c): the **architecture dossier** at
   [`docs/architecture.md`](docs/architecture.md). It explains how abacus is put
   together for an engineer who wants to understand, extend, or integrate it

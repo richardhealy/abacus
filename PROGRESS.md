@@ -210,11 +210,21 @@ without reading every line of source. One deliverable per run, in priority order
       external-dependency list, a spec→code traceability table, and a note on how
       the design pays off in the test strategy. Prose-only; the build/test suite
       (184) and the TypeDoc generation (zero warnings) both stay green.
-- [ ] **d. Integration guide** (`docs/integration.md`) — standing abacus up in a
-      real app: wiring `meteringMiddleware` + `enforcementMiddleware`, choosing a
-      sink (in-memory / OTel) and store (in-memory / Redis), defining budgets and
-      a policy, and mounting `/usage` + the dashboard — with concrete, runnable
-      examples per surface.
+- [x] **d. Integration guide** (`docs/integration.md`) — standing abacus up in a
+      real app, end to end. Lays out the integration surfaces (the two
+      middlewares, the OTel sink, the two HTTP handlers) then walks the eight steps
+      to wire them: meter (the one-line wrap), attribute via
+      `providerOptions.abacus`, choose a sink (in-memory / OTel / a durable
+      `MeterSink`) and a store (in-memory / `RedisBudgetStore` over `RedisLike`),
+      define budgets and a policy (the three downshift-target forms, conservative
+      defaults, fail-open vs fail-closed), enforce with `enforcementMiddleware`
+      (`resolveModel` for downshift, required `prices`, the optional
+      `GovernanceCache`, non-atomic check-then-charge), and expose `/usage` +
+      the dashboard. Plus a framework-mounting matrix (Next.js / Hono / Bun / Deno
+      / Workers / Express), an authentication section (none built in — mount behind
+      your own access control), a complete production-shaped wiring, and
+      operational notes. Prose-only — no behaviour change; the suite (184) stays
+      green and TypeDoc still generates with zero warnings.
 - [ ] **e. How-to guides + docs index + README pass** — task-oriented guides
       (e.g. cap a tenant's monthly spend, downshift Opus → Haiku on a soft limit,
       ship spend to your tracing tool), a `docs/` index, and a final `README.md`
