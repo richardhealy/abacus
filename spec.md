@@ -13,6 +13,7 @@ This is the concern most AI demos ignore entirely, which is exactly why building
 - Implemented as **AI SDK middleware**, so it wraps any model call without the caller knowing.
 - Attribution by tenant / feature / user, with per-dimension budgets.
 - Graceful degradation: when a budget is near its limit, downshift the model (for example Opus to Haiku via the Gateway), serve a cache hit, or refuse with a clear error, by policy.
+- **Prompt caching for agent loops:** the biggest input-token lever in a multi-turn agent is the stable prefix it re-sends every step (system, tool schemas, prior turns). `abacus` plans and maintains `cache_control` breakpoints over that prefix so each step re-reads cached tokens at a fraction of the cost, and the resulting cache reads/writes and savings are metered and attributed like any other spend.
 - Spend traces to Langfuse or Helicone; live budget state in Redis.
 
 ---
@@ -23,7 +24,8 @@ This is the concern most AI demos ignore entirely, which is exactly why building
 - Middleware that records tokens, latency, and computed cost per call, tagged with attribution dimensions.
 - A budget store (Redis): soft and hard limits per tenant/feature, windowed (daily/monthly).
 - A policy engine: on soft-limit, downshift or cache; on hard-limit, refuse; all configurable.
-- A model price table kept in config (or read from the Gateway) so cost math is auditable.
+- A model price table kept in config (or read from the Gateway) so cost math is auditable, including per-model cache-read / cache-write pricing.
+- Prompt-cache planning for agent loops: place and maintain `cache_control` breakpoints on the stable prefix (system, tools, prior turns), track cache hit rate and input-token savings, and roll them into the usage report.
 - A small dashboard or `/usage` endpoint showing spend by dimension.
 
 **Explicitly out (for v1):**
@@ -40,7 +42,8 @@ abacus/
     middleware/      # AI SDK middleware: meter + enforce
     budget/          # Redis-backed soft/hard limits, windows
     policy/          # downshift / cache / refuse decisions
-    pricing/         # auditable price table + cost math
+    pricing/         # auditable price table + cost math (incl. cache read/write)
+    caching/         # prompt-cache breakpoint planning for agent loops (cache_control)
     attribution/     # tenant/feature/user tagging
     usage/           # /usage endpoint + spend rollups
   examples/          # wrapping a sample agent call
@@ -58,6 +61,7 @@ Design rule: the policy decision is pure and testable, taking (budget state, req
 - [ ] Attribution verified end to end: a tagged call shows up under the right tenant/feature.
 - [ ] Budget enforcement tested under concurrency (no overspend race).
 - [ ] Each policy branch (downshift / cache / refuse) tested in isolation.
+- [ ] Prompt-cache breakpoints cut input-token cost on a multi-turn agent loop, with hit rate and savings measured and attributed.
 - [ ] Spend traces visible in Langfuse or Helicone.
 - [ ] `/usage` returns accurate rollups; a dashboard screenshot in the README.
 - [ ] Wrapping a call requires one line; the README shows before/after.
@@ -68,13 +72,14 @@ Design rule: the policy decision is pure and testable, taking (budget state, req
 
 | # | Milestone | Outcome | Status |
 |---|-----------|---------|--------|
-| M0 | Scaffold | TS project, sample wrapped call, CI green | ☐ Not started |
-| M1 | Metering | middleware records tokens/latency/cost, attribution tags | ☐ Not started |
-| M2 | Pricing | auditable price table, deterministic cost math, tests | ☐ Not started |
-| M3 | Budgets | Redis soft/hard limits, windows, concurrency-safe | ☐ Not started |
-| M4 | Policy engine | downshift / cache / refuse, per-branch tests | ☐ Not started |
-| M5 | Observability | Langfuse/Helicone traces, /usage rollups | ☐ Not started |
-| M6 | Dashboard + ship | spend-by-dimension view, README, release | ☐ Not started |
+| M0 | Scaffold | TS project, sample wrapped call, CI green | ☑ Done |
+| M1 | Metering | middleware records tokens/latency/cost, attribution tags | ☑ Done |
+| M2 | Pricing | auditable price table, deterministic cost math, tests | ☑ Done |
+| M3 | Budgets | Redis soft/hard limits, windows, concurrency-safe | ☑ Done |
+| M4 | Policy engine | downshift / cache / refuse, per-branch tests | ☑ Done |
+| M5 | Observability | Langfuse/Helicone traces, /usage rollups | ☑ Done |
+| M6 | Dashboard + ship | spend-by-dimension view, README, release | ☑ Done |
+| M7 | Prompt caching | cache_control breakpoints for agent loops, hit-rate + savings metered | ☐ Not started |
 
 Status legend: ☐ Not started, ◐ In progress, ☑ Done, ⊘ Blocked.
 
@@ -86,6 +91,7 @@ Status legend: ☐ Not started, ◐ In progress, ☑ Done, ⊘ Blocked.
 2. Crossing a soft limit downshifts (or caches) per policy; crossing a hard limit refuses cleanly.
 3. Budget accounting is correct under concurrent calls (tested).
 4. Spend by tenant/feature is visible via `/usage` and in the tracing tool.
+5. A multi-turn agent loop shows measured input-token savings from `cache_control` breakpoints, attributed in `/usage`.
 
 ## Stretch goals
 - Forecast month-end spend from the current burn rate.
