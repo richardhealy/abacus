@@ -243,9 +243,24 @@ without reading every line of source. One deliverable per run, in priority order
       four-row table linking each `docs/` guide plus the index) so a newcomer is
       pointed at the manual instead of relying on the README alone. Prose only — no
       behaviour change; the full `check` (lint + typecheck + 184 tests + build)
-      and the TypeDoc generation (zero warnings) both stay green. **This is the
-      final documentation deliverable: the spec is fully implemented (M0–M6), all
-      184 tests pass, and every documentation deliverable (a–e) is now done.**
+      and the TypeDoc generation (zero warnings) both stay green. **The spec is
+      fully implemented (M0–M6), all 184 tests pass, and documentation
+      deliverables (a–e) are done.**
+- [x] **f. Feature-in-action screenshot** (`docs/governance.png`) — a terminal
+      capture of the whole governance path running, rendered with
+      [`freeze`](https://github.com/charmbracelet/freeze). The image is a genuine
+      run of the real `src/` code (metering + pricing + `rollupByDimension` +
+      `BudgetLedger` + `enforcementMiddleware`/`decide`) against a mock model, just
+      formatted as a clean, colorized session: a metering table (tokens + cost per
+      tenant from the real price table), the spend-by-tenant bar chart (the
+      `/usage` rollup), and the enforcement decisions — three tenants on one
+      `$0.005/month` budget, **allowed** (acme, `ok`) / **downshifted** Opus → Haiku
+      (globex, `soft`) / **refused** with `BudgetExceededError` (initech, `hard`).
+      Embedded in the README's **Enforcement** section and linked from the
+      [`docs/` index](docs/README.md); committed like `docs/dashboard.png`. The
+      one-off capture script was run from the repo root and removed (only the image
+      is committed — no scratch/tooling artifact), matching the dashboard-screenshot
+      precedent. Image only — no behaviour change; the full `check` stays green.
 
 ## Definition of done (from spec)
 

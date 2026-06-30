@@ -346,7 +346,15 @@ ledger read or write failure is routed to `onError` and the call **fails open**
 charge updates it *after* — a call's own cost isn't known until it returns, so
 crossing a limit governs the *next* call. Both the buffered and streaming paths are
 enforced. See it run across allow / downshift / refuse in
-[`examples/wrap-call.ts`](examples/wrap-call.ts).
+[`examples/wrap-call.ts`](examples/wrap-call.ts):
+
+![abacus governing a run in the terminal: a metering table showing tokens and cost per tenant, a spend-by-tenant bar chart, and the enforcement decisions — acme allowed on Opus, globex downshifted to Haiku at its soft limit, and initech refused at its hard limit.](docs/governance.png)
+
+*The whole governance path running offline against a mock model — real metering,
+pricing, rollups, and policy decisions, no API keys. Three tenants share one
+`$0.005/month` budget; as each one's metered spend crosses `ok → soft → hard`, the
+same wrapped model is **allowed**, transparently **downshifted** Opus → Haiku, then
+cleanly **refused** with a `BudgetExceededError` — the caller never changes.*
 
 ## Observability
 

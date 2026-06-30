@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — 2026-06-30
+- Documentation phase, deliverable (f): a **feature-in-action screenshot** at
+  [`docs/governance.png`](docs/governance.png) — a terminal capture of abacus's
+  whole governance path running, rendered with
+  [`freeze`](https://github.com/charmbracelet/freeze). It is a genuine run of the
+  real `src/` code (metering, the bundled price table, `rollupByDimension`,
+  `BudgetLedger`, and `enforcementMiddleware`/`decide`) against a mock model, just
+  formatted as a clean, colorized session: a metering table (tokens and cost per
+  tenant), a spend-by-tenant bar chart (the `/usage` rollup), and the enforcement
+  decisions — three tenants sharing one `$0.005/month` budget where, as each one's
+  metered spend crosses `ok → soft → hard`, the same wrapped model is **allowed**
+  (acme), transparently **downshifted** Opus → Haiku (globex, at its soft limit),
+  then cleanly **refused** with a `BudgetExceededError` (initech, at its hard
+  limit). Embedded in the README's **Enforcement** section and linked from the
+  [`docs/` index](docs/README.md), mirroring how `docs/dashboard.png` is checked
+  in. Image and prose only — no behaviour change; the full `check` (lint +
+  typecheck + 184 tests + build) stays green.
+
 ### Added — 2026-06-28
 - Documentation phase, deliverable (e) — the **final** documentation increment:
   task-oriented **how-to guides**, a **`docs/` index**, and a **README pass**.

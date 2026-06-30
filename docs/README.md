@@ -44,7 +44,11 @@ npm run check     # lint + typecheck + test + build
 
 [`examples/wrap-call.ts`](../examples/wrap-call.ts) wires metering, pricing,
 attribution, enforcement (allow / downshift / refuse), `/usage`, and the dashboard
-end-to-end, offline.
+end-to-end, offline. For a snapshot of that path running in the terminal — the
+metering table, the spend-by-tenant bars, and the allow / downshift / refuse
+decisions — see [`governance.png`](governance.png) (also embedded in the
+[project README](../README.md#enforcement)); the spend-by-dimension HTML dashboard
+is captured in [`dashboard.png`](dashboard.png).
 
 ## Where to start by goal
 
