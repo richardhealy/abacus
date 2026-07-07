@@ -9,26 +9,6 @@ path** and can meter, attribute, cap, and downshift — all observable. It is bu
 as [Vercel AI SDK](https://ai-sdk.dev) middleware, so it wraps any model call
 without the caller knowing.
 
-> **Status:** Metering (**M0–M1**), pricing (**M2**), budgets (**M3**), the
-> policy engine (**M4**), its **enforcement in the call path**, and
-> **observability (M5)** are in place — one-line wrapping that meters both the
-> buffered (`generateText`) and streaming (`streamText`) paths, normalized token
-> metering, attribution by tenant / feature / user with spend rollups, a
-> pluggable sink, an auditable price table, deterministic per-call cost,
-> concurrency-safe soft/hard budgets over daily/monthly windows (in-memory or
-> Redis-backed), a pure policy engine that turns a budget level into a
-> downshift / cache / refuse decision, and an enforcement middleware that
-> *executes* that decision — downshifting, serving cache, or refusing — and
-> charges spend back to the budget, an **OpenTelemetry sink** that emits metered
-> spend as `gen_ai.*` spans and metrics through [`watchtower`](spec.md), a
-> framework-agnostic **`/usage` endpoint** that serves the spend-by-dimension
-> view as JSON, and an **HTML dashboard** (**M6**) that renders the same view as a
-> self-contained, dependency-free page — see the screenshot under
-> [Dashboard](#dashboard). The v1 spec is now fully implemented across **M0–M6**,
-> the full suite (184 tests) is green, and the API is tagged **`v1.0.0`**. See
-> [`PROGRESS.md`](PROGRESS.md), [`CHANGELOG.md`](CHANGELOG.md), and
-> [`spec.md`](spec.md).
-
 ## Documentation
 
 This README is the tour; the [`docs/`](docs/) directory is the manual. Start with
