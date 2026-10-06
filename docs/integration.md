@@ -330,6 +330,8 @@ import {
   defaultPrices,
 } from 'abacus';
 
+const metering = meteringMiddleware({ sink, prices: defaultPrices });
+
 const model = wrapLanguageModel({
   model: gateway('anthropic/claude-opus-4'),
   middleware: [
@@ -339,8 +341,9 @@ const model = wrapLanguageModel({
       policy,                              // from Step 5
       prices: defaultPrices,               // cost charged back to the ledger
       resolveModel: (id) => gateway(id),   // turn a downshift target id into a model
+      downshiftMiddleware: metering,       // meter the downshifted call as well
     }),
-    meteringMiddleware({ sink, prices: defaultPrices }),
+    metering,
   ],
 });
 
@@ -360,13 +363,19 @@ try {
 }
 ```
 
-Three wiring details that matter in production:
+Four wiring details that matter in production:
 
 - **`resolveModel` is required for downshift to execute.** `wrapLanguageModel`
   binds one model, but a downshift must call a *different* one. `resolveModel`
   turns the target id the engine picked into a runnable model (a gateway call or a
   `createProviderRegistry` lookup). Omit it, or return `undefined`, and the call
   **falls back to the requested model** rather than failing.
+- **Pass the metering middleware as `downshiftMiddleware`.** A downshift calls the
+  resolved model directly, so it bypasses the metering middleware listed after
+  enforcement. With `downshiftMiddleware: metering` the resolved model is wrapped
+  in it first, and the downshifted call is recorded under the model that ran, at
+  its price. Without it the ledger is still charged, but no record reaches the
+  sink, so `/usage`, the dashboard and the traces miss every downshifted call.
 - **`prices` is required** here (unlike metering, where it is optional) — charging
   the ledger is the point, and cost is derived from the *executed* model, so a
   downshift accrues the cheaper rate.
@@ -581,6 +590,8 @@ const policy: Policy = {
 };
 
 // --- one wrapped model: metered AND governed ---
+const metering = meteringMiddleware({ sink, prices: defaultPrices });
+
 export const model = wrapLanguageModel({
   model: gateway('anthropic/claude-opus-4'),
   middleware: [
@@ -589,8 +600,9 @@ export const model = wrapLanguageModel({
       policy,
       prices: defaultPrices,
       resolveModel: (id) => gateway(id),
+      downshiftMiddleware: metering,
     }),
-    meteringMiddleware({ sink, prices: defaultPrices }),
+    metering,
   ],
 });
 
