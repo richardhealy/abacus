@@ -162,11 +162,15 @@ flowchart LR
 Wrap a model with both middlewares and the caller's code never changes:
 
 ```ts
+const metering = meteringMiddleware({ sink, prices });
 const model = wrapLanguageModel({
   model: gateway('anthropic/claude-opus-4'),
   middleware: [
-    enforcementMiddleware({ ledger, policy, prices, resolveModel }),
-    meteringMiddleware({ sink, prices }),
+    enforcementMiddleware({
+      ledger, policy, prices, resolveModel,
+      downshiftMiddleware: metering,
+    }),
+    metering,
   ],
 });
 await generateText({
@@ -178,7 +182,10 @@ await generateText({
 
 Middleware composes **outermost-first**: enforcement wraps metering, which wraps
 the model. So enforcement decides *before* the call, metering observes the result,
-and enforcement charges *after*.
+and enforcement charges *after*. A downshift is the one exception to that nesting:
+enforcement calls the resolved model directly, outside the inner metering layer,
+so it wraps that model in `downshiftMiddleware` (the same metering middleware) to
+keep the cheaper call metered.
 
 ```mermaid
 sequenceDiagram
@@ -229,8 +236,12 @@ Key properties of this flow:
    that closes with no `finish` part records zero usage rather than nothing.
 5. **Downshift needs a resolver.** `wrapLanguageModel` binds one model, but a
    downshift must *call a different one*. Enforcement takes a `resolveModel(id) →
-   model` seam and invokes the resolved model's `doGenerate`/`doStream` directly.
-   If the target can't be resolved, the call falls back to the requested model
+   model` seam and invokes the resolved model's `doGenerate`/`doStream` directly,
+   which bypasses the inner metering layer. That is why enforcement takes
+   `downshiftMiddleware`: the resolved model is wrapped in it first, so the
+   downshifted call reaches the sink as the diagram shows (recorded under the
+   model that ran, at its price). Without it, the ledger is charged but nothing
+   is metered. If the target can't be resolved, the call falls back to the requested model
    (failing open). Cache is served through an optional `GovernanceCache` hook
    (abacus owns no cache); a miss falls through to the live call.
 

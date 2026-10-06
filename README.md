@@ -285,6 +285,8 @@ import {
   defaultPrices,
 } from 'abacus';
 
+const metering = meteringMiddleware({ sink, prices: defaultPrices });
+
 const model = wrapLanguageModel({
   model: gateway('anthropic/claude-opus-4'),
   middleware: [
@@ -293,8 +295,9 @@ const model = wrapLanguageModel({
       policy,                    // downshift on soft, refuse on hard
       prices: defaultPrices,     // cost charged back to the ledger
       resolveModel: (id) => gateway(id), // turn a downshift target id into a model
+      downshiftMiddleware: metering,     // meter the cheaper call as well
     }),
-    meteringMiddleware({ sink, prices: defaultPrices }),
+    metering,
   ],
 });
 
@@ -315,7 +318,11 @@ try {
 `resolveModel` is the seam a **downshift** needs to actually call a cheaper model
 (the engine picks the target id; this turns it into a runnable model — a gateway
 call or a `createProviderRegistry` lookup). If it can't resolve a target, the call
-falls back to the requested model rather than failing. A **cache** decision is
+falls back to the requested model rather than failing. Because a downshift calls
+the resolved model directly, it skips the metering middleware listed after
+enforcement; passing that same middleware as `downshiftMiddleware` puts it back in
+the path, so the downshifted call is recorded under the model that ran, at its
+price. A **cache** decision is
 served through an optional `cache` hook (abacus does not own a cache); a miss falls
 through to the live call. A **refuse** decision throws `BudgetExceededError`,
 carrying the triggering `BudgetState`.
