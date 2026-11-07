@@ -163,6 +163,10 @@ const haiku = new MockLanguageModelV3({
 
 // One wrapped model, now metered AND governed — still a one-line integration.
 // enforcement runs first (outermost) so it decides before metering observes.
+// A downshift calls the resolved model directly, outside the inner metering
+// layer, so the same metering middleware is passed as `downshiftMiddleware`.
+const governedSink = new InMemoryMeterSink();
+const governedMetering = meteringMiddleware({ sink: governedSink, prices: defaultPrices });
 const governed = wrapLanguageModel({
   model,
   middleware: [
@@ -171,8 +175,9 @@ const governed = wrapLanguageModel({
       policy,
       prices: defaultPrices,
       resolveModel: (id) => (id === 'anthropic/claude-haiku-4' ? haiku : undefined),
+      downshiftMiddleware: governedMetering,
     }),
-    meteringMiddleware({ sink: new InMemoryMeterSink(), prices: defaultPrices }),
+    governedMetering,
   ],
 });
 
@@ -191,4 +196,13 @@ for (const tenant of ['acme', 'globex', 'initech']) {
       throw error;
     }
   }
+}
+
+// Every executed call is metered under the model that actually ran: acme on
+// Opus, globex on Haiku (downshifted), and nothing for initech (refused).
+for (const record of governedSink.records) {
+  console.log(
+    `Metered governed call: ${record.attribution?.tenant} on ${record.modelId}, ` +
+      `$${record.cost?.toFixed(7)}`,
+  );
 }

@@ -16,6 +16,8 @@ import {
   defaultPrices,
   enforcementMiddleware,
   InMemoryBudgetStore,
+  InMemoryMeterSink,
+  meteringMiddleware,
 } from '../src/index.js';
 
 // A single, fixed instant. Both the pre-charge and the middleware use it so all
@@ -428,5 +430,135 @@ describe('enforcementMiddleware — streaming path', () => {
     expect(doStream).not.toHaveBeenCalled();
     const [state] = await ledger.check(acme, AT);
     expect(state?.spent).toBeCloseTo(0.5, 9);
+  });
+});
+
+// The documented wiring puts enforcement outermost and metering inside it. A
+// downshift calls the resolved model directly, which skips the inner metering
+// layer, so without `downshiftMiddleware` the cheaper call was never recorded.
+describe('enforcementMiddleware — composed with metering', () => {
+  /** A ledger already at its soft limit, and a policy that downshifts Opus to Haiku. */
+  async function atSoftLimit(): Promise<{ ledger: BudgetLedger; policy: Policy }> {
+    const { ledger } = ledgerWith({ dimension: 'tenant', key: 'acme', window: 'monthly', soft: 0.001, hard: 10 });
+    await ledger.charge(acme, 0.001, AT);
+    return { ledger, policy: { soft: { kind: 'downshift', to: { [OPUS]: HAIKU } } } };
+  }
+
+  it('meters a downshifted buffered call as the model that ran', async () => {
+    const { ledger, policy } = await atSoftLimit();
+    const opus = bufferedModel(OPUS, 'opus');
+    const haiku = bufferedModel(HAIKU, 'haiku');
+    const sink = new InMemoryMeterSink();
+    const metering = meteringMiddleware({ sink, prices: defaultPrices, now: () => AT });
+    const wrapped = wrapLanguageModel({
+      model: opus.model,
+      middleware: [
+        enforcementMiddleware({
+          ledger,
+          policy,
+          prices: defaultPrices,
+          resolveModel: (id) => (id === HAIKU ? haiku.model : undefined),
+          downshiftMiddleware: metering,
+          now: () => AT,
+        }),
+        metering,
+      ],
+    });
+
+    const { text } = await generateText({ model: wrapped, prompt: 'hi', providerOptions: { abacus: acme } });
+
+    expect(text).toBe('haiku');
+    expect(sink.records).toHaveLength(1);
+    const [record] = sink.records;
+    expect(record?.modelId).toBe(HAIKU);
+    expect(record?.cost).toBeCloseTo(HAIKU_COST, 9);
+    expect(record?.attribution).toEqual(acme);
+    // The ledger and the meter agree on what the downshifted call cost.
+    const [state] = await ledger.check(acme, AT);
+    expect(state?.spent).toBeCloseTo(0.001 + (record?.cost ?? 0), 9);
+  });
+
+  it('meters a downshifted streamed call as the model that ran', async () => {
+    const { ledger, policy } = await atSoftLimit();
+    const opus = streamingModel(OPUS, 'opus-stream');
+    const haiku = streamingModel(HAIKU, 'haiku-stream');
+    const sink = new InMemoryMeterSink();
+    const metering = meteringMiddleware({ sink, prices: defaultPrices, now: () => AT });
+    const wrapped = wrapLanguageModel({
+      model: opus.model,
+      middleware: [
+        enforcementMiddleware({
+          ledger,
+          policy,
+          prices: defaultPrices,
+          resolveModel: (id) => (id === HAIKU ? haiku.model : undefined),
+          downshiftMiddleware: metering,
+          now: () => AT,
+        }),
+        metering,
+      ],
+    });
+
+    const result = streamText({ model: wrapped, prompt: 'hi', providerOptions: { abacus: acme } });
+    const text = await drain(result.textStream);
+
+    expect(text).toBe('haiku-stream');
+    expect(sink.records).toHaveLength(1);
+    expect(sink.records[0]?.modelId).toBe(HAIKU);
+    expect(sink.records[0]?.cost).toBeCloseTo(HAIKU_COST, 9);
+    expect(sink.records[0]?.attribution).toEqual(acme);
+  });
+
+  it('meters an allowed call once, through the normal inner layer', async () => {
+    const { ledger } = ledgerWith({ dimension: 'tenant', key: 'acme', window: 'monthly', hard: 10 });
+    const sink = new InMemoryMeterSink();
+    const metering = meteringMiddleware({ sink, prices: defaultPrices, now: () => AT });
+    const wrapped = wrapLanguageModel({
+      model: bufferedModel(OPUS, 'opus').model,
+      middleware: [
+        enforcementMiddleware({
+          ledger,
+          policy: { soft: { kind: 'downshift', to: { [OPUS]: HAIKU } } },
+          prices: defaultPrices,
+          resolveModel: () => bufferedModel(HAIKU, 'haiku').model,
+          downshiftMiddleware: metering,
+          now: () => AT,
+        }),
+        metering,
+      ],
+    });
+
+    await generateText({ model: wrapped, prompt: 'hi', providerOptions: { abacus: acme } });
+
+    expect(sink.records).toHaveLength(1);
+    expect(sink.records[0]?.modelId).toBe(OPUS);
+    expect(sink.records[0]?.cost).toBeCloseTo(OPUS_COST, 9);
+  });
+
+  it('runs every middleware in a downshiftMiddleware array', async () => {
+    const { ledger, policy } = await atSoftLimit();
+    const haiku = bufferedModel(HAIKU, 'haiku');
+    const first = new InMemoryMeterSink();
+    const second = new InMemoryMeterSink();
+    const wrapped = wrapLanguageModel({
+      model: bufferedModel(OPUS, 'opus').model,
+      middleware: enforcementMiddleware({
+        ledger,
+        policy,
+        prices: defaultPrices,
+        resolveModel: () => haiku.model,
+        downshiftMiddleware: [
+          meteringMiddleware({ sink: first, now: () => AT }),
+          meteringMiddleware({ sink: second, now: () => AT }),
+        ],
+        now: () => AT,
+      }),
+    });
+
+    await generateText({ model: wrapped, prompt: 'hi', providerOptions: { abacus: acme } });
+
+    expect(haiku.doGenerate).toHaveBeenCalledOnce();
+    expect(first.records.map((r) => r.modelId)).toEqual([HAIKU]);
+    expect(second.records.map((r) => r.modelId)).toEqual([HAIKU]);
   });
 });

@@ -262,6 +262,20 @@ without reading every line of source. One deliverable per run, in priority order
       is committed — no scratch/tooling artifact), matching the dashboard-screenshot
       precedent. Image only — no behaviour change; the full `check` stays green.
 
+## Fixes
+
+- [x] **Downshifted calls were not metered** (2026-10-06). With enforcement
+      outside metering, as every doc and the example wire it, a downshift called
+      the resolved model directly and skipped the metering layer: the ledger
+      was charged but the sink, `/usage`, the dashboard and the traces never saw
+      the call. Added `EnforcementOptions.downshiftMiddleware`, which wraps the
+      resolved model before it runs; passing the same metering middleware records
+      the call under the model that ran. Docs and example updated; 4 regression
+      tests (188 total).
+- Open: a cache hit is not metered either (no tokens are spent, but it also
+  leaves no record that the policy served cache), and `Budget.soft > hard` is
+  not rejected. Neither is covered by the spec; noted for a later pass.
+
 ## Definition of done (from spec)
 
 - [x] A wrapped call is metered and attributed with one line of integration

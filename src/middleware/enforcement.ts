@@ -19,6 +19,7 @@ import type {
   LanguageModelV3StreamResult,
   LanguageModelV3Usage,
 } from '@ai-sdk/provider';
+import { wrapLanguageModel } from 'ai';
 import {
   attributionFromProviderOptions,
   mergeAttribution,
@@ -137,6 +138,16 @@ export interface EnforcementOptions {
    * resolver that returns `undefined` for a given target has the same fallback.
    */
   resolveModel?: ModelResolver;
+  /**
+   * Middleware to run a downshift target through. A downshift calls the
+   * resolved model directly, so it skips every middleware listed after this one
+   * in `wrapLanguageModel`, including {@link meteringMiddleware} in the usual
+   * wiring. Pass the same metering middleware here and a downshifted call is
+   * metered as the model that actually ran, at that model's price. Without it,
+   * only the ledger sees a downshifted call's spend: no record reaches the sink,
+   * `/usage`, the dashboard or the traces.
+   */
+  downshiftMiddleware?: LanguageModelV3Middleware | LanguageModelV3Middleware[];
   /** Optional read-through cache for `cache` decisions. */
   cache?: GovernanceCache;
   /**
@@ -208,14 +219,20 @@ function defaultOnUnpricedModel(modelId: string): void {
  * breaks the wrapped call (it fails open).
  *
  * Both the buffered (`generateText`) and streaming (`streamText`) paths are
- * enforced. Wrap a model with both middlewares to meter *and* enforce:
+ * enforced. Wrap a model with both middlewares to meter *and* enforce, and
+ * pass the metering middleware as {@link EnforcementOptions.downshiftMiddleware}
+ * too, so a downshifted call is metered as well:
  *
  * ```ts
+ * const metering = meteringMiddleware({ sink, prices });
  * const model = wrapLanguageModel({
  *   model: gateway('anthropic/claude-opus-4'),
  *   middleware: [
- *     enforcementMiddleware({ ledger, policy, prices, resolveModel }),
- *     meteringMiddleware({ sink, prices }),
+ *     enforcementMiddleware({
+ *       ledger, policy, prices, resolveModel,
+ *       downshiftMiddleware: metering,
+ *     }),
+ *     metering,
  *   ],
  * });
  * ```
@@ -223,7 +240,8 @@ function defaultOnUnpricedModel(modelId: string): void {
 export function enforcementMiddleware(
   options: EnforcementOptions,
 ): LanguageModelV3Middleware {
-  const { ledger, policy, prices, resolveModel, cache } = options;
+  const { ledger, policy, prices, resolveModel, downshiftMiddleware, cache } =
+    options;
   const now = options.now ?? Date.now;
   const onError = options.onError ?? defaultOnError;
   const onUnpricedModel = options.onUnpricedModel ?? defaultOnUnpricedModel;
@@ -237,6 +255,17 @@ export function enforcementMiddleware(
       defaultAttribution,
       attributionFromProviderOptions(params.providerOptions),
     );
+  }
+
+  /**
+   * Resolve a downshift target to a runnable model, wrapped in
+   * `downshiftMiddleware` when one is configured so the cheaper call passes
+   * through the same inner layers (metering) as the requested model would.
+   */
+  function resolveTarget(modelId: string): LanguageModelV3 | undefined {
+    const target = resolveModel?.(modelId);
+    if (target === undefined || downshiftMiddleware === undefined) return target;
+    return wrapLanguageModel({ model: target, middleware: downshiftMiddleware });
   }
 
   /**
@@ -347,7 +376,7 @@ export function enforcementMiddleware(
           return executeGenerate(doGenerate, model.modelId, attribution, at);
         }
         case 'downshift': {
-          const target = resolveModel?.(action.model);
+          const target = resolveTarget(action.model);
           if (target === undefined) {
             return executeGenerate(doGenerate, model.modelId, attribution, at);
           }
@@ -380,7 +409,7 @@ export function enforcementMiddleware(
           return executeStream(doStream, model.modelId, attribution, at);
         }
         case 'downshift': {
-          const target = resolveModel?.(action.model);
+          const target = resolveTarget(action.model);
           if (target === undefined) {
             return executeStream(doStream, model.modelId, attribution, at);
           }

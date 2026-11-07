@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-10-06)
+- Downshifted calls were never metered. Every documented wiring puts
+  `enforcementMiddleware` outside `meteringMiddleware`, and a downshift calls the
+  resolved model's `doGenerate`/`doStream` directly, so the cheaper call skipped
+  the metering layer. The ledger was charged, but no `MeterRecord` reached the
+  sink, so `/usage`, the dashboard and the OpenTelemetry traces left out every
+  call made after a tenant crossed its soft limit. `EnforcementOptions` now takes
+  `downshiftMiddleware`: the resolved model is wrapped in it before it runs, so
+  passing the same metering middleware records the downshifted call under the
+  model that ran, at that model's price. The README, the architecture,
+  integration and how-to guides, and `examples/wrap-call.ts` now show this
+  wiring; the example prints the governed calls it metered. 4 regression tests
+  (buffered and streaming downshift, an allowed call still metered once, and an
+  array of middleware); 188 tests in total.
+
 ### Added — 2026-06-30
 - Documentation phase, deliverable (f): a **feature-in-action screenshot** at
   [`docs/governance.png`](docs/governance.png) — a terminal capture of abacus's

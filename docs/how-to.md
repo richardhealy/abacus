@@ -144,6 +144,8 @@ const policy: Policy = {
   hard: { kind: 'refuse' },
 };
 
+const metering = meteringMiddleware({ sink, prices: defaultPrices });
+
 const model = wrapLanguageModel({
   model: gateway('anthropic/claude-opus-4'),
   middleware: [
@@ -153,13 +155,15 @@ const model = wrapLanguageModel({
       prices: defaultPrices,
       // The seam a downshift needs to actually CALL a different model.
       resolveModel: (id) => gateway(id),
+      // Run the cheaper model through metering too.
+      downshiftMiddleware: metering,
     }),
-    meteringMiddleware({ sink, prices: defaultPrices }),
+    metering,
   ],
 });
 ```
 
-Two details make the downshift real:
+Three details make the downshift real:
 
 - **`resolveModel` is required for it to execute.** `wrapLanguageModel` binds one
   model; a downshift must call another. `resolveModel` turns the target id the
@@ -168,6 +172,11 @@ Two details make the downshift real:
 - **The downshift accrues the cheaper rate.** Cost is charged from the *executed*
   model, so once `acme` is downshifted its Haiku calls bill at Haiku's price — the
   budget tightens more slowly, exactly as intended.
+- **`downshiftMiddleware` keeps the downshift metered.** The resolved model is
+  called directly, outside the metering middleware listed after enforcement. Pass
+  that same middleware as `downshiftMiddleware` and the Haiku call is recorded
+  under Haiku at Haiku's price; leave it out and the call charges the budget but
+  never reaches the sink, so `/usage` and the dashboard under-report spend.
 
 The `to` target has three auditable forms: a **string** (always downshift to this
 one model), a **record** (`{ requested → replacement }`, above), or a **function**
