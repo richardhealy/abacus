@@ -303,6 +303,8 @@ Key properties of this flow:
   under (`budgetsFor`), and offers `check` (read) and `charge` (read-modify, atomic
   in the store) returning a `BudgetState` per matching budget. The pure
   `budgetLevel`/`evaluateBudget` derive the level the policy engine consumes.
+  The constructor rejects budgets whose limits cannot be enforced (negative or
+  `NaN`, or `soft` above `hard`) with a `RangeError`.
 
 ### `policy/` — decide
 

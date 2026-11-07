@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-11-07)
+- `BudgetLedger` accepted budgets it could not enforce. A soft limit above the
+  hard limit was never reported, because spend reaches the hard limit first, so
+  a configured downshift or cache rule never ran. A `NaN` hard limit (for
+  example from `Number(process.env.UNSET)`) was never reached, so the budget
+  never refused. The constructor now throws a `RangeError` that names the
+  budget when a limit is negative or not a number, or when `soft` is above
+  `hard`. `soft` equal to `hard`, `hard: 0` and `hard: Infinity` are still
+  accepted. The `Budget` doc comment, the integration guide and the
+  architecture doc say so. 5 new tests; 193 in total.
+
 ### Fixed (2026-10-06)
 - Downshifted calls were never metered. Every documented wiring puts
   `enforcementMiddleware` outside `meteringMiddleware`, and a downshift calls the

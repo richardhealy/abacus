@@ -145,3 +145,53 @@ describe('BudgetLedger', () => {
     ).toBe(0);
   });
 });
+
+describe('BudgetLedger budget validation', () => {
+  function build(...budgets: Budget[]) {
+    return () => new BudgetLedger({ store: new InMemoryBudgetStore(), budgets });
+  }
+
+  it('rejects a soft limit above the hard limit', () => {
+    // Left alone, a soft limit of 20 under a hard limit of 10 is never
+    // reported: spend reaches hard first, so a configured downshift or cache
+    // rule would silently never run.
+    const inverted: Budget = { ...acmeBudget, soft: 20, hard: 10 };
+    expect(budgetLevel(inverted, 15)).toBe('hard');
+    expect(build(inverted)).toThrow(RangeError);
+    expect(build(inverted)).toThrow(
+      'BudgetLedger: budget for tenant "acme" (monthly) has a soft limit of 20 above its hard limit of 10',
+    );
+  });
+
+  it('rejects a hard limit that is negative or not a number', () => {
+    // A NaN hard limit (say from Number(process.env.UNSET)) would never be
+    // reached, so the budget would never refuse.
+    expect(budgetLevel({ ...chatBudget, hard: Number.NaN }, 1_000_000)).toBe('ok');
+    expect(build({ ...chatBudget, hard: Number.NaN })).toThrow(
+      'BudgetLedger: budget for feature "chat" (daily) has a hard limit of NaN; limits must be numbers of 0 or more',
+    );
+    expect(build({ ...chatBudget, hard: -1 })).toThrow(RangeError);
+  });
+
+  it('rejects a soft limit that is negative or not a number', () => {
+    expect(build({ ...acmeBudget, soft: Number.NaN })).toThrow(
+      'BudgetLedger: budget for tenant "acme" (monthly) has a soft limit of NaN; limits must be numbers of 0 or more',
+    );
+    expect(build({ ...acmeBudget, soft: -5 })).toThrow(RangeError);
+  });
+
+  it('names the offending budget when several are configured', () => {
+    expect(build(acmeBudget, { ...chatBudget, soft: 3 })).toThrow(
+      'BudgetLedger: budget for feature "chat" (daily) has a soft limit of 3 above its hard limit of 2',
+    );
+  });
+
+  it('accepts a soft limit equal to the hard limit, a zero hard limit and an unbounded hard limit', () => {
+    expect(build({ ...acmeBudget, soft: 10, hard: 10 })).not.toThrow();
+    // hard: 0 refuses all spend, which is a legitimate way to block a tenant.
+    expect(build({ ...chatBudget, hard: 0 })).not.toThrow();
+    // hard: Infinity degrades at soft but never refuses.
+    expect(build({ ...acmeBudget, soft: 5, hard: Number.POSITIVE_INFINITY })).not.toThrow();
+    expect(build(acmeBudget, chatBudget)).not.toThrow();
+  });
+});
