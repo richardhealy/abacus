@@ -272,9 +272,23 @@ without reading every line of source. One deliverable per run, in priority order
       resolved model before it runs; passing the same metering middleware records
       the call under the model that ran. Docs and example updated; 4 regression
       tests (188 total).
-- Open: a cache hit is not metered either (no tokens are spent, but it also
-  leaves no record that the policy served cache), and `Budget.soft > hard` is
-  not rejected. Neither is covered by the spec; noted for a later pass.
+- [x] **Budgets that cannot be enforced were accepted** (2026-11-07). A soft
+      limit above the hard limit was never reported (spend reaches hard first),
+      so a configured downshift or cache rule silently never ran; a `NaN` hard
+      limit (for example `Number(process.env.UNSET)`) was never reached, so the
+      budget never refused. The `Budget` doc said `soft` must not exceed `hard`
+      but nothing checked it. `new BudgetLedger` now throws a `RangeError`
+      naming the budget when a limit is negative or not a number, or when
+      `soft` is above `hard`. `soft === hard`, `hard: 0` (block all spend) and
+      `hard: Infinity` (degrade, never refuse) are still accepted. 5 new tests
+      (193 total).
+- Open: a cache hit is not metered (no tokens are spent, but it also leaves no
+  record that the policy served cache). Not covered by the spec; noted for a
+  later pass.
+- Open: two budgets on the same scope (same dimension, key and window) charge
+  the same store bucket twice, so one $1 call reads back as $1 and $2 spent.
+  Either the ledger should reject duplicate scopes or charge each scope once and
+  evaluate every budget against that one total; that choice is still to make.
 
 ## Definition of done (from spec)
 

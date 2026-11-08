@@ -294,7 +294,10 @@ const policy: Policy = {
 **Budgets.** Each is keyed on one dimension/value (`tenant: 'acme'`), windowed
 `daily` or `monthly`, with an optional `soft` limit and a required `hard` limit in
 USD. A single call can fall under several budgets at once (its tenant *and* its
-feature); the most severe level governs.
+feature); the most severe level governs. `new BudgetLedger` throws a `RangeError`
+naming the budget if a limit is negative or not a number, or if `soft` is above
+`hard`, so a limit read from an unset environment variable (`NaN`) fails at
+startup instead of never refusing.
 
 **Policy.** A rule per level. The defaults are conservative — **observe at soft,
 refuse at hard** — so degradation is opt-in. A `downshift` rule's `to` target is

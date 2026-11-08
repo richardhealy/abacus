@@ -45,6 +45,36 @@ export function evaluateBudget(budget: Budget, spent: number): BudgetState {
   };
 }
 
+/**
+ * Throw a `RangeError` if `budget`'s limits cannot be enforced as written.
+ *
+ * Each limit must be a number of 0 or more (`Infinity` is allowed, so a budget
+ * can degrade at `soft` without ever refusing), and `soft` must not exceed
+ * `hard`. Without this check, a `NaN` hard limit is never reached, so the budget
+ * never refuses, and a soft limit above the hard limit is never reported, so a
+ * configured downshift or cache rule never runs. Both fail silently at call
+ * time, which is why the ledger rejects them when it is built.
+ */
+function assertValidBudget(budget: Budget): void {
+  const label = `budget for ${budget.dimension} "${budget.key}" (${budget.window})`;
+  const limits: [string, number | undefined][] = [
+    ['hard', budget.hard],
+    ['soft', budget.soft],
+  ];
+  for (const [name, value] of limits) {
+    if (value !== undefined && !(value >= 0)) {
+      throw new RangeError(
+        `BudgetLedger: ${label} has a ${name} limit of ${String(value)}; limits must be numbers of 0 or more`,
+      );
+    }
+  }
+  if (budget.soft !== undefined && budget.soft > budget.hard) {
+    throw new RangeError(
+      `BudgetLedger: ${label} has a soft limit of ${String(budget.soft)} above its hard limit of ${String(budget.hard)}`,
+    );
+  }
+}
+
 /** The {@link BudgetScope} a budget accumulates spend against. */
 function scopeOf(budget: Budget): BudgetScope {
   return {
@@ -83,7 +113,14 @@ export class BudgetLedger {
   private readonly budgets: readonly Budget[];
   private readonly now: () => number;
 
+  /**
+   * @throws {RangeError} If any budget has a limit that is negative or not a
+   * number, or a soft limit above its hard limit. Such a budget would fail
+   * silently at call time (never refusing, or never degrading), so it is
+   * rejected when the ledger is built instead.
+   */
   constructor(options: BudgetLedgerOptions) {
+    for (const budget of options.budgets) assertValidBudget(budget);
     this.store = options.store;
     this.budgets = options.budgets;
     this.now = options.now ?? Date.now;

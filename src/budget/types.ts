@@ -30,7 +30,9 @@ export const BUDGET_WINDOWS: readonly BudgetWindow[] = ['daily', 'monthly'];
  * 'tenant', key: 'acme' }` budgets the tenant `acme`. The two thresholds drive
  * the policy engine (M4): crossing {@link Budget.soft} signals graceful
  * degradation (downshift / serve cache), crossing {@link Budget.hard} signals
- * refusal. `soft` is optional and, when set, must not exceed `hard`.
+ * refusal. `soft` is optional and, when set, must not exceed `hard`. Both
+ * limits must be numbers of 0 or more; {@link BudgetLedger} throws a
+ * `RangeError` when it is built with a budget that breaks either rule.
  */
 export interface Budget {
   /** Which attribution axis this budget caps (tenant / feature / user). */
