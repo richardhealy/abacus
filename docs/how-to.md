@@ -348,8 +348,8 @@ tokens**. Pass your own anywhere `defaultPrices` is accepted.
 import type { PriceTable } from 'abacus';
 
 const myPrices: PriceTable = {
-  'claude-opus-4':  { input: 12, output: 60, cachedInput: 1.2 },
-  'claude-haiku-4': { input: 0.7, output: 3.5, cachedInput: 0.07 },
+  'claude-opus-4':  { input: 12, output: 60, cachedInput: 1.2, cacheWriteInput: 15 },
+  'claude-haiku-4': { input: 0.7, output: 3.5, cachedInput: 0.07, cacheWriteInput: 0.875 },
 };
 
 const model = wrapLanguageModel({
@@ -361,8 +361,8 @@ const model = wrapLanguageModel({
 The table is conventionally keyed by **bare** model id (`claude-opus-4`); lookups
 match an exact id first, then fall back to the bare id after the last `/`, so a
 gateway-style `anthropic/claude-opus-4` prices correctly. `cachedInput` is the
-discounted prompt-cache read rate — omit it and cache reads bill at the full
-`input` rate. A model with no entry is metered **without** a cost and surfaced via
+discounted prompt-cache read rate and `cacheWriteInput` the prompt-cache write
+rate. Omit either and those tokens bill at the full `input` rate. A model with no entry is metered **without** a cost and surfaced via
 `onUnpricedModel`, never silently billed at `0`.
 
 Start from `defaultPrices` and spread your overrides on top if you only adjust a

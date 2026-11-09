@@ -27,6 +27,7 @@ export function zeroUsage(): TokenUsage {
     outputTokens: 0,
     totalTokens: 0,
     cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
     reasoningTokens: 0,
   };
 }
@@ -39,7 +40,8 @@ export function zeroUsage(): TokenUsage {
  * provider-supplied totals and falls back to summing the components that are
  * present:
  *
- * - `inputTokens`  = `inputTokens.total` ?? (`noCache` + `cacheRead`)
+ * - `inputTokens`  = `inputTokens.total` ?? (`noCache` + `cacheRead` +
+ *   `cacheWrite`)
  * - `outputTokens` = `outputTokens.total` ?? (`text` + `reasoning`)
  * - `totalTokens`  = `inputTokens` + `outputTokens`
  *
@@ -47,8 +49,10 @@ export function zeroUsage(): TokenUsage {
  */
 export function normalizeUsage(usage: LanguageModelV3Usage): TokenUsage {
   const cachedInputTokens = n(usage.inputTokens.cacheRead);
+  const cacheWriteInputTokens = n(usage.inputTokens.cacheWrite);
   const inputTokens =
-    usage.inputTokens.total ?? n(usage.inputTokens.noCache) + cachedInputTokens;
+    usage.inputTokens.total ??
+    n(usage.inputTokens.noCache) + cachedInputTokens + cacheWriteInputTokens;
 
   const reasoningTokens = n(usage.outputTokens.reasoning);
   const outputTokens =
@@ -59,6 +63,7 @@ export function normalizeUsage(usage: LanguageModelV3Usage): TokenUsage {
     outputTokens,
     totalTokens: inputTokens + outputTokens,
     cachedInputTokens,
+    cacheWriteInputTokens,
     reasoningTokens,
   };
 }

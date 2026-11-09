@@ -14,14 +14,17 @@ const sampleUsage: LanguageModelV3Usage = {
   outputTokens: { total: 8, text: 8, reasoning: 0 },
 };
 
-function mockModel(modelId = 'mock/opus'): LanguageModelV3 {
+function mockModel(
+  modelId = 'mock/opus',
+  usage: LanguageModelV3Usage = sampleUsage,
+): LanguageModelV3 {
   return new MockLanguageModelV3({
     provider: 'mock',
     modelId,
     doGenerate: async (): Promise<LanguageModelV3GenerateResult> => ({
       content: [{ type: 'text', text: 'ok' }],
       finishReason: { unified: 'stop', raw: 'stop' },
-      usage: sampleUsage,
+      usage,
       warnings: [],
     }),
   });
@@ -41,6 +44,31 @@ describe('meteringMiddleware pricing', () => {
     await generateText({ model, prompt: 'hi' });
 
     expect(sink.records[0]?.cost).toBe(0.00123);
+  });
+
+  it('prices prompt-cache writes and reads at their own rates', async () => {
+    // How Anthropic reports a call that writes 1000 prompt tokens to the cache
+    // and reads 2000: total input includes both, noCache is the rest.
+    const cachedUsage: LanguageModelV3Usage = {
+      inputTokens: { total: 3100, noCache: 100, cacheRead: 2000, cacheWrite: 1000 },
+      outputTokens: { total: 50, text: 50, reasoning: 0 },
+    };
+    const sink = new InMemoryMeterSink();
+    const model = wrapLanguageModel({
+      model: mockModel('mock/opus', cachedUsage),
+      middleware: meteringMiddleware({
+        sink,
+        prices: {
+          'mock/opus': { input: 15, output: 75, cachedInput: 1.5, cacheWriteInput: 18.75 },
+        },
+      }),
+    });
+
+    await generateText({ model, prompt: 'hi' });
+
+    // 100 @ $15/M + 2000 @ $1.5/M + 1000 @ $18.75/M + 50 @ $75/M.
+    expect(sink.records[0]?.usage.cacheWriteInputTokens).toBe(1000);
+    expect(sink.records[0]?.cost).toBe(0.027);
   });
 
   it('omits cost entirely when no price table is configured', async () => {

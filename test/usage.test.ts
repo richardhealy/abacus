@@ -34,6 +34,7 @@ describe('normalizeUsage', () => {
       outputTokens: 40,
       totalTokens: 140,
       cachedInputTokens: 30,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 12,
     });
   });
@@ -46,6 +47,7 @@ describe('normalizeUsage', () => {
       outputTokens: 0,
       totalTokens: 0,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 0,
     });
   });
@@ -60,6 +62,25 @@ describe('normalizeUsage', () => {
     expect(result.totalTokens).toBe(130);
     expect(result.cachedInputTokens).toBe(30);
     expect(result.reasoningTokens).toBe(5);
+  });
+
+  it('reads cache writes as part of the input', () => {
+    const result = normalizeUsage(
+      usage({ total: 100, noCache: 50, cacheRead: 30, cacheWrite: 20 }, { total: 5 }),
+    );
+
+    expect(result.inputTokens).toBe(100);
+    expect(result.cachedInputTokens).toBe(30);
+    expect(result.cacheWriteInputTokens).toBe(20);
+  });
+
+  it('counts cache writes in the input sum when the total is absent', () => {
+    const result = normalizeUsage(
+      usage({ noCache: 50, cacheRead: 30, cacheWrite: 20 }, { text: 5 }),
+    );
+
+    expect(result.inputTokens).toBe(100);
+    expect(result.totalTokens).toBe(105);
   });
 
   it('prefers an explicit total over component sums', () => {

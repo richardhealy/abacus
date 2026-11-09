@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added (2026-11-09)
+- Prompt-cache writes are metered and priced at their own rate (first part of
+  spec milestone M7). Until now a cache write was billed as ordinary input, so
+  on Anthropic models, which charge 1.25 times the input rate for writes to the
+  5-minute cache, every write was under-reported by a quarter of the input
+  price. The input side of an agent step on `claude-sonnet-4` that writes an
+  8,000-token prefix and sends 2,000 fresh tokens now costs $0.036 instead of
+  $0.030.
+  - `TokenUsage.cacheWriteInputTokens`, read from the AI SDK's
+    `inputTokens.cacheWrite`. Like cache reads it is part of `inputTokens`,
+    and it is now added in when a provider reports components without a total.
+  - `ModelPrice.cacheWriteInput` (optional; when it is left out, writes bill at
+    the input rate, as before) and `CostBreakdown.cacheWriteInputCost`.
+  - `defaultPrices` sets the 5-minute write rate on the Anthropic models.
+    OpenAI and Gemini do not charge extra for writes and have no write rate.
+  - Rollups, the `/usage` report, `InMemoryMeterSink.totals()` and the OTel
+    span attribute `abacus.usage.cache_write_input_tokens` carry the count.
+    Records stored by an earlier version have no count and are summed as 0.
+  - `TokenUsage` gains a required field, so code that builds `TokenUsage`
+    objects by hand (test fixtures, custom sinks) needs to add it.
+  - 7 new tests; 200 in total.
+
 ### Fixed (2026-11-07)
 - `BudgetLedger` accepted budgets it could not enforce. A soft limit above the
   hard limit was never reported, because spend reaches the hard limit first, so

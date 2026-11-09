@@ -45,6 +45,7 @@ export class InMemoryMeterSink implements MeterSink {
       acc.outputTokens += usage.outputTokens;
       acc.totalTokens += usage.totalTokens;
       acc.cachedInputTokens += usage.cachedInputTokens;
+      acc.cacheWriteInputTokens += usage.cacheWriteInputTokens;
       acc.reasoningTokens += usage.reasoningTokens;
       return acc;
     }, zeroUsage());

@@ -75,6 +75,8 @@ function totalsOf(records: readonly MeterRecord[]): UsageTotals {
     usage.outputTokens += record.usage.outputTokens;
     usage.totalTokens += record.usage.totalTokens;
     usage.cachedInputTokens += record.usage.cachedInputTokens;
+    // `?? 0`: records stored before cache writes were metered lack the field.
+    usage.cacheWriteInputTokens += record.usage.cacheWriteInputTokens ?? 0;
     usage.reasoningTokens += record.usage.reasoningTokens;
     cost += record.cost ?? 0;
   }

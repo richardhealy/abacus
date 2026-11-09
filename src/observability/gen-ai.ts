@@ -47,6 +47,8 @@ export const ATTR_GEN_AI_TOKEN_TYPE = 'gen_ai.token.type';
 export const ATTR_ABACUS_COST_USD = 'abacus.cost.usd';
 export const ATTR_ABACUS_TOTAL_TOKENS = 'abacus.usage.total_tokens';
 export const ATTR_ABACUS_CACHED_INPUT_TOKENS = 'abacus.usage.cached_input_tokens';
+export const ATTR_ABACUS_CACHE_WRITE_INPUT_TOKENS =
+  'abacus.usage.cache_write_input_tokens';
 export const ATTR_ABACUS_REASONING_TOKENS = 'abacus.usage.reasoning_tokens';
 /** Prefix for free-form attribution tags, e.g. `abacus.tag.env`. */
 export const ATTR_ABACUS_TAG_PREFIX = 'abacus.tag.';
@@ -143,6 +145,7 @@ export function genAiSpanAttributes(
     [ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]: record.usage.outputTokens,
     [ATTR_ABACUS_TOTAL_TOKENS]: record.usage.totalTokens,
     [ATTR_ABACUS_CACHED_INPUT_TOKENS]: record.usage.cachedInputTokens,
+    [ATTR_ABACUS_CACHE_WRITE_INPUT_TOKENS]: record.usage.cacheWriteInputTokens,
     [ATTR_ABACUS_REASONING_TOKENS]: record.usage.reasoningTokens,
     ...attributionAttributes(record.attribution),
   };

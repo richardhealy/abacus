@@ -27,6 +27,13 @@ export interface TokenUsage {
   totalTokens: number;
   /** Input tokens served from the provider's prompt cache (read). */
   cachedInputTokens: number;
+  /**
+   * Input tokens written to the provider's prompt cache on this call. Like
+   * {@link TokenUsage.cachedInputTokens} they are part of `inputTokens`, but
+   * providers that charge for cache writes (Anthropic does) bill them at their
+   * own rate, usually above the standard input rate.
+   */
+  cacheWriteInputTokens: number;
   /** Output tokens spent on model reasoning. */
   reasoningTokens: number;
 }

@@ -13,6 +13,7 @@ function record(overrides: Partial<MeterRecord> = {}): MeterRecord {
       outputTokens: 5,
       totalTokens: 15,
       cachedInputTokens: 2,
+      cacheWriteInputTokens: 3,
       reasoningTokens: 1,
     },
     ...overrides,
@@ -29,6 +30,7 @@ describe('InMemoryMeterSink', () => {
       outputTokens: 0,
       totalTokens: 0,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 0,
     });
   });
@@ -52,6 +54,7 @@ describe('InMemoryMeterSink', () => {
       outputTokens: 10,
       totalTokens: 30,
       cachedInputTokens: 4,
+      cacheWriteInputTokens: 6,
       reasoningTokens: 2,
     });
   });

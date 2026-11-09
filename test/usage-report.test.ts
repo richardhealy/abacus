@@ -13,6 +13,7 @@ function record(overrides: Partial<MeterRecord> = {}): MeterRecord {
       outputTokens: 40,
       totalTokens: 140,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 0,
     },
     cost: 0.01,
@@ -23,8 +24,8 @@ function record(overrides: Partial<MeterRecord> = {}): MeterRecord {
 describe('buildUsageReport', () => {
   it('sums totals across every record', () => {
     const report = buildUsageReport([
-      record({ cost: 0.01, usage: { inputTokens: 100, outputTokens: 40, totalTokens: 140, cachedInputTokens: 0, reasoningTokens: 0 } }),
-      record({ cost: 0.02, usage: { inputTokens: 50, outputTokens: 10, totalTokens: 60, cachedInputTokens: 5, reasoningTokens: 2 } }),
+      record({ cost: 0.01, usage: { inputTokens: 100, outputTokens: 40, totalTokens: 140, cachedInputTokens: 0, cacheWriteInputTokens: 0, reasoningTokens: 0 } }),
+      record({ cost: 0.02, usage: { inputTokens: 50, outputTokens: 10, totalTokens: 60, cachedInputTokens: 5, cacheWriteInputTokens: 7, reasoningTokens: 2 } }),
     ]);
 
     expect(report.totals).toEqual({
@@ -34,10 +35,24 @@ describe('buildUsageReport', () => {
         outputTokens: 50,
         totalTokens: 200,
         cachedInputTokens: 5,
+        cacheWriteInputTokens: 7,
         reasoningTokens: 2,
       },
       cost: 0.03,
     });
+  });
+
+  it('counts cache writes as 0 for records stored before they were metered', () => {
+    // A record source can return records written by an earlier abacus, whose
+    // usage has no cacheWriteInputTokens. The totals must stay numbers.
+    const oldUsage: Partial<MeterRecord['usage']> = { ...record().usage };
+    delete oldUsage.cacheWriteInputTokens;
+    const old = record({ usage: oldUsage as MeterRecord['usage'] });
+    const current = record({ usage: { ...record().usage, cacheWriteInputTokens: 3 } });
+    const report = buildUsageReport([old, current], { dimensions: ['tenant'] });
+
+    expect(report.totals.usage.cacheWriteInputTokens).toBe(3);
+    expect(report.byDimension.tenant?.[0]?.usage.cacheWriteInputTokens).toBe(3);
   });
 
   it('rolls up by all three dimensions by default', () => {
@@ -134,6 +149,7 @@ describe('buildUsageReport', () => {
         outputTokens: 0,
         totalTokens: 0,
         cachedInputTokens: 0,
+        cacheWriteInputTokens: 0,
         reasoningTokens: 0,
       },
       cost: 0,
