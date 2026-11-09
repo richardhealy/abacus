@@ -56,7 +56,8 @@ const model = wrapLanguageModel({
 await generateText({ model, prompt: 'What is the capital of France?' });
 
 console.log(sink.totals());
-// → { inputTokens: 42, outputTokens: 8, totalTokens: 50, cachedInputTokens: 0, reasoningTokens: 0 }
+// → { inputTokens: 42, outputTokens: 8, totalTokens: 50, cachedInputTokens: 0,
+//     cacheWriteInputTokens: 0, reasoningTokens: 0 }
 ```
 
 The same wrap meters **streaming** calls too. Parts flow through untouched and
@@ -153,7 +154,8 @@ console.log(sink.totalCost()); // → total spend in USD across all calls
 
 The bundled `defaultPrices` table is **plain, auditable config** in
 [`src/pricing/prices.ts`](src/pricing/prices.ts): list prices in USD per 1M
-tokens, keyed by model, with a separate (discounted) rate for prompt-cache reads.
+tokens, keyed by model, with separate rates for prompt-cache reads (discounted)
+and, for Anthropic models, prompt-cache writes (charged at a premium).
 Override it with your own negotiated rates by passing any `PriceTable`. Cost math
 is also available standalone:
 
@@ -161,11 +163,13 @@ is also available standalone:
 import { computeCost, defaultPrices } from 'abacus';
 
 computeCost('anthropic/claude-opus-4', record.usage, defaultPrices);
-// → { inputCost, cachedInputCost, outputCost, totalCost, currency: 'USD' }
+// → { inputCost, cachedInputCost, cacheWriteInputCost, outputCost, totalCost, currency: 'USD' }
 ```
 
-Cached input tokens are billed at the cache rate and the remainder at the full
-input rate; reasoning tokens are part of output and are not charged twice. A
+Cache reads are billed at the read rate, cache writes at the write rate, and the
+rest of the input at the full input rate. A model with no write rate bills its
+writes at the input rate, which is right for OpenAI and Gemini, where writes
+cost nothing extra. Reasoning tokens are part of output and are not charged twice. A
 model with no entry in the table is metered **without** a cost (and surfaced via
 an `onUnpricedModel` hook) rather than silently billed at `0`.
 

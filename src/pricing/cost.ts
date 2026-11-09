@@ -50,28 +50,34 @@ export function priceFor(
 /**
  * Compute the per-category {@link CostBreakdown} for `usage` at `price`.
  *
- * Cached input tokens are a subset of `inputTokens`, so they are billed
- * separately at the (discounted) cache rate and the remainder at the full input
- * rate. Reasoning tokens are a subset of `outputTokens` and are already covered
+ * Cache reads and cache writes are both subsets of `inputTokens`, so each is
+ * billed at its own rate (the discounted read rate, the write rate) and only
+ * the remainder at the full input rate. Reasoning tokens are a subset of `outputTokens` and are already covered
  * by the output rate, so they are not charged again.
  *
  * Pure and deterministic: the same usage and price always yield the same
  * numbers.
  */
 export function costOf(usage: TokenUsage, price: ModelPrice): CostBreakdown {
-  const cacheRate = price.cachedInput ?? price.input;
-  const uncachedInputTokens = usage.inputTokens - usage.cachedInputTokens;
+  const cacheReadRate = price.cachedInput ?? price.input;
+  const cacheWriteRate = price.cacheWriteInput ?? price.input;
+  const uncachedInputTokens =
+    usage.inputTokens - usage.cachedInputTokens - usage.cacheWriteInputTokens;
 
   const inputCost = usd(uncachedInputTokens, price.input);
-  const cachedInputCost = usd(usage.cachedInputTokens, cacheRate);
+  const cachedInputCost = usd(usage.cachedInputTokens, cacheReadRate);
+  const cacheWriteInputCost = usd(usage.cacheWriteInputTokens, cacheWriteRate);
   const outputCost = usd(usage.outputTokens, price.output);
 
   return {
     inputCost,
     cachedInputCost,
+    cacheWriteInputCost,
     outputCost,
     totalCost:
-      Math.round((inputCost + cachedInputCost + outputCost) * NANO) / NANO,
+      Math.round(
+        (inputCost + cachedInputCost + cacheWriteInputCost + outputCost) * NANO,
+      ) / NANO,
     currency: 'USD',
   };
 }

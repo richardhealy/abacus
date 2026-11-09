@@ -61,6 +61,7 @@ describe('meteringMiddleware', () => {
         outputTokens: 8,
         totalTokens: 50,
         cachedInputTokens: 0,
+        cacheWriteInputTokens: 0,
         reasoningTokens: 0,
       },
     });

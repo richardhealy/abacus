@@ -172,6 +172,7 @@ spend-by-dimension [`UsageReport`](#usagereport) as JSON.
       "outputTokens": 1300,
       "totalTokens": 5500,
       "cachedInputTokens": 0,
+      "cacheWriteInputTokens": 0,
       "reasoningTokens": 0
     },
     "cost": 0.0037
@@ -186,6 +187,7 @@ spend-by-dimension [`UsageReport`](#usagereport) as JSON.
           "outputTokens": 900,
           "totalTokens": 3900,
           "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
           "reasoningTokens": 0
         },
         "cost": 0.0029
@@ -198,6 +200,7 @@ spend-by-dimension [`UsageReport`](#usagereport) as JSON.
           "outputTokens": 400,
           "totalTokens": 1600,
           "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
           "reasoningTokens": 0
         },
         "cost": 0.0008
@@ -303,11 +306,12 @@ interface RollupEntry {
 
 ```ts
 interface TokenUsage {
-  inputTokens: number;        // prompt tokens (includes cached)
-  outputTokens: number;       // completion tokens (includes reasoning)
-  totalTokens: number;        // input + output
-  cachedInputTokens: number;  // prompt tokens served from cache
-  reasoningTokens: number;    // output tokens spent on reasoning
+  inputTokens: number;            // prompt tokens (includes cache reads and writes)
+  outputTokens: number;           // completion tokens (includes reasoning)
+  totalTokens: number;            // input + output
+  cachedInputTokens: number;      // prompt tokens served from cache
+  cacheWriteInputTokens: number;  // prompt tokens written to cache
+  reasoningTokens: number;        // output tokens spent on reasoning
 }
 ```
 

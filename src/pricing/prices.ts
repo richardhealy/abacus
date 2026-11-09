@@ -18,15 +18,39 @@ import type { PriceTable } from './types.js';
  * against your provider's current pricing — that verification is the whole point
  * of keeping the numbers in one auditable place.
  *
- * `cachedInput` is the prompt-cache *read* rate. Cache *writes* are not modeled
- * separately yet; they are billed at the standard input rate.
+ * `cachedInput` is the prompt-cache *read* rate and `cacheWriteInput` the
+ * prompt-cache *write* rate. The Anthropic write rates are the 5-minute cache
+ * (1.25 times input); writes to the 1-hour cache cost 2 times input, so a
+ * deployment that uses it should override them. OpenAI and Gemini do not charge
+ * extra for writes, so their models leave `cacheWriteInput` out and writes are
+ * billed at the input rate.
  */
 export const defaultPrices: PriceTable = {
   // --- Anthropic Claude ---
-  'claude-opus-4': { input: 15, output: 75, cachedInput: 1.5 },
-  'claude-sonnet-4': { input: 3, output: 15, cachedInput: 0.3 },
-  'claude-haiku-4': { input: 0.8, output: 4, cachedInput: 0.08 },
-  'claude-3-5-haiku': { input: 0.8, output: 4, cachedInput: 0.08 },
+  'claude-opus-4': {
+    input: 15,
+    output: 75,
+    cachedInput: 1.5,
+    cacheWriteInput: 18.75,
+  },
+  'claude-sonnet-4': {
+    input: 3,
+    output: 15,
+    cachedInput: 0.3,
+    cacheWriteInput: 3.75,
+  },
+  'claude-haiku-4': {
+    input: 0.8,
+    output: 4,
+    cachedInput: 0.08,
+    cacheWriteInput: 1,
+  },
+  'claude-3-5-haiku': {
+    input: 0.8,
+    output: 4,
+    cachedInput: 0.08,
+    cacheWriteInput: 1,
+  },
 
   // --- OpenAI ---
   'gpt-4o': { input: 2.5, output: 10, cachedInput: 1.25 },

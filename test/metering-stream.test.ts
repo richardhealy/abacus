@@ -79,6 +79,7 @@ describe('meteringMiddleware streaming', () => {
         outputTokens: 8,
         totalTokens: 50,
         cachedInputTokens: 0,
+        cacheWriteInputTokens: 0,
         reasoningTokens: 0,
       },
     });
@@ -170,6 +171,7 @@ describe('meteringMiddleware streaming', () => {
       outputTokens: 0,
       totalTokens: 0,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 0,
     });
   });

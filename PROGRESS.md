@@ -167,6 +167,27 @@ Milestone checklist derived from [`spec.md`](spec.md). Status legend:
         and a `prepublishOnly` gate that runs the full `check` (lint + typecheck +
         test + build) so a broken build can never publish.
 
+- **◐ M7: Prompt caching.** `cache_control` breakpoints for agent loops, hit
+  rate and savings metered (added to the spec after the v1.0.0 release).
+  - [x] Cache-write pricing (2026-11-09). `TokenUsage.cacheWriteInputTokens`
+        is read from the AI SDK's `inputTokens.cacheWrite` (and counted in the
+        input total when a provider gives only components), `ModelPrice` takes
+        an optional `cacheWriteInput` rate, and `CostBreakdown` has a
+        `cacheWriteInputCost` line. The bundled Anthropic models carry the
+        5-minute cache write rate (1.25 times input); OpenAI and Gemini models
+        have none, so their writes bill at the input rate as before. Before
+        this, Anthropic cache writes were billed at the input rate, so an agent
+        loop that wrote its prefix to the cache was under-reported by a quarter
+        of the input price on those tokens. Rollups, `/usage`, the in-memory
+        sink and the OTel span (`abacus.usage.cache_write_input_tokens`) carry
+        the new count; records stored by an earlier version count as 0.
+        7 new tests (200 total).
+  - [ ] Plan and place `cache_control` breakpoints on the stable prefix of an
+        agent loop (system, tools, prior turns).
+  - [ ] Hit rate and input-token savings in the usage report and dashboard.
+  - [ ] A multi-turn agent loop example showing measured savings, attributed
+        in `/usage` (definition of done item 5).
+
 ## Documentation
 
 The build is complete (**M0–M6**, 184 tests green), so the remaining work is the

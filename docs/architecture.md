@@ -277,8 +277,9 @@ Key properties of this flow:
 ### `pricing/` — what it cost
 
 - **`cost.ts`** — `priceFor` (exact match, then bare-id fallback after the last
-  `/`), `costOf` (per-category `CostBreakdown`), `computeCost`. Cached input is
-  billed at the discounted cache rate, the remainder at full input rate; reasoning
+  `/`), `costOf` (per-category `CostBreakdown`), `computeCost`. Cache reads are
+  billed at the discounted read rate, cache writes at the write rate, the
+  remainder at full input rate; reasoning
   tokens are part of output and not charged twice. Every amount is **rounded to
   nano-dollars** so summing thousands of small costs never drifts.
 - **`prices.ts`** — `defaultPrices`, plain auditable config in USD per 1M tokens.

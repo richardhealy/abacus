@@ -14,12 +14,14 @@ function usage(partial: Partial<TokenUsage>): TokenUsage {
     outputTokens: 0,
     totalTokens: 0,
     cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
     reasoningTokens: 0,
     ...partial,
   };
 }
 
 const opus: ModelPrice = { input: 15, output: 75, cachedInput: 1.5 };
+const opusWithWrites: ModelPrice = { ...opus, cacheWriteInput: 18.75 };
 
 describe('priceFor', () => {
   it('resolves an exact key', () => {
@@ -63,6 +65,7 @@ describe('costOf', () => {
       {
         inputCost: 0.015,
         cachedInputCost: 0,
+        cacheWriteInputCost: 0,
         outputCost: 0.0375,
         totalCost: 0.0525,
         currency: 'USD',
@@ -106,6 +109,40 @@ describe('costOf', () => {
     expect(result.totalCost).toBe(0.01);
   });
 
+  it('bills cache writes at the write rate and reads at the read rate', () => {
+    // 500 fresh @ $15/M + 200 read @ $1.5/M + 300 written @ $18.75/M
+    // + 100 output @ $75/M.
+    const result = costOf(
+      usage({
+        inputTokens: 1000,
+        cachedInputTokens: 200,
+        cacheWriteInputTokens: 300,
+        outputTokens: 100,
+      }),
+      opusWithWrites,
+    );
+    expect(result).toEqual({
+      inputCost: 0.0075,
+      cachedInputCost: 0.0003,
+      cacheWriteInputCost: 0.005625,
+      outputCost: 0.0075,
+      totalCost: 0.020925,
+      currency: 'USD',
+    });
+  });
+
+  it('bills cache writes at the input rate when no write rate is set', () => {
+    const flat: ModelPrice = { input: 10, output: 20 };
+    const result = costOf(
+      usage({ inputTokens: 1000, cacheWriteInputTokens: 400 }),
+      flat,
+    );
+    // 600 @ 10 + 400 @ 10 == 1000 @ 10, the same as before writes were split out.
+    expect(result.inputCost).toBe(0.006);
+    expect(result.cacheWriteInputCost).toBe(0.004);
+    expect(result.totalCost).toBe(0.01);
+  });
+
   it('is deterministic and free of floating-point dust across many calls', () => {
     const one = costOf(usage({ inputTokens: 333, outputTokens: 111 }), opus);
     const summed = Array.from({ length: 3 }).reduce<number>(
@@ -127,6 +164,19 @@ describe('computeCost', () => {
     expect(result?.totalCost).toBe(0.018); // 1000@$3/M + 1000@$15/M
   });
 
+  it('charges the bundled Anthropic cache-write premium', () => {
+    // An agent's first step writes an 8k-token prefix to the cache:
+    // 2000 fresh @ $3/M + 8000 written @ $3.75/M. Billing the writes at the
+    // input rate would report $0.03, $0.006 short.
+    const result = computeCost(
+      'anthropic/claude-sonnet-4',
+      usage({ inputTokens: 10_000, cacheWriteInputTokens: 8_000 }),
+      defaultPrices,
+    );
+    expect(result?.cacheWriteInputCost).toBe(0.03);
+    expect(result?.totalCost).toBe(0.036);
+  });
+
   it('returns undefined for an unpriced model', () => {
     expect(
       computeCost('unknown-model', usage({ inputTokens: 10 }), defaultPrices),
@@ -141,6 +191,9 @@ describe('defaultPrices', () => {
       expect(price.output, model).toBeGreaterThan(0);
       if (price.cachedInput !== undefined) {
         expect(price.cachedInput, model).toBeLessThanOrEqual(price.input);
+      }
+      if (price.cacheWriteInput !== undefined) {
+        expect(price.cacheWriteInput, model).toBeGreaterThanOrEqual(price.input);
       }
     }
   });

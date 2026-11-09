@@ -17,6 +17,7 @@ function record(overrides: Partial<MeterRecord> = {}): MeterRecord {
       outputTokens: 40,
       totalTokens: 140,
       cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
       reasoningTokens: 0,
     },
     cost: 0.01,

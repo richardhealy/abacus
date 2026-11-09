@@ -16,8 +16,8 @@ import type { TokenUsage } from '../middleware/types.js';
  * published rate card at a glance.
  *
  * Rates are per *category* of token, mirroring how providers actually bill:
- * fresh prompt tokens, cache reads, and completion tokens each have their own
- * line. Reasoning/thinking tokens are billed at the `output` rate (they are a
+ * fresh prompt tokens, cache reads, cache writes, and completion tokens each
+ * have their own line. Reasoning/thinking tokens are billed at the `output` rate (they are a
  * subset of output tokens), so they have no separate line here.
  */
 export interface ModelPrice {
@@ -32,6 +32,13 @@ export interface ModelPrice {
    * the full `input` rate.
    */
   cachedInput?: number;
+  /**
+   * USD per 1M input tokens written to the provider's prompt cache (a "cache
+   * write"). Anthropic charges a premium on {@link ModelPrice.input} for these;
+   * providers that cache automatically (OpenAI, Gemini's implicit caching) do
+   * not. When omitted, cache writes are billed at the full `input` rate.
+   */
+  cacheWriteInput?: number;
 }
 
 /**
@@ -56,9 +63,11 @@ export interface CostBreakdown {
   inputCost: number;
   /** Cost of input tokens served from the prompt cache. */
   cachedInputCost: number;
+  /** Cost of input tokens written to the prompt cache. */
+  cacheWriteInputCost: number;
   /** Cost of output (completion) tokens, reasoning tokens included. */
   outputCost: number;
-  /** `inputCost + cachedInputCost + outputCost`. */
+  /** `inputCost + cachedInputCost + cacheWriteInputCost + outputCost`. */
   totalCost: number;
   /** Currency of every amount above. Always `"USD"`. */
   currency: 'USD';

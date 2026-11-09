@@ -79,7 +79,7 @@ Design rule: the policy decision is pure and testable, taking (budget state, req
 | M4 | Policy engine | downshift / cache / refuse, per-branch tests | ☑ Done |
 | M5 | Observability | Langfuse/Helicone traces, /usage rollups | ☑ Done |
 | M6 | Dashboard + ship | spend-by-dimension view, README, release | ☑ Done |
-| M7 | Prompt caching | cache_control breakpoints for agent loops, hit-rate + savings metered | ☐ Not started |
+| M7 | Prompt caching | cache_control breakpoints for agent loops, hit-rate + savings metered | ◐ In progress (cache-write pricing done) |
 
 Status legend: ☐ Not started, ◐ In progress, ☑ Done, ⊘ Blocked.
 

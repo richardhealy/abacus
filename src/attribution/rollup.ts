@@ -42,6 +42,7 @@ function emptyUsage(): TokenUsage {
     outputTokens: 0,
     totalTokens: 0,
     cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
     reasoningTokens: 0,
   };
 }
@@ -51,6 +52,8 @@ function addUsage(into: TokenUsage, from: TokenUsage): void {
   into.outputTokens += from.outputTokens;
   into.totalTokens += from.totalTokens;
   into.cachedInputTokens += from.cachedInputTokens;
+  // `?? 0`: records stored before cache writes were metered lack the field.
+  into.cacheWriteInputTokens += from.cacheWriteInputTokens ?? 0;
   into.reasoningTokens += from.reasoningTokens;
 }
 
